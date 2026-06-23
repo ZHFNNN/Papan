@@ -2,6 +2,9 @@
   <h1>🏠 PAPAN</h1>
   <p>Platform Pencarian & Penyewaan Properti dengan Sistem Rekomendasi Cerdas (DSS)</p>
   
+  <a href="https://github.com/ZHFNNN/Papan" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github" alt="GitHub Repository" />
+  </a>
   <a href="https://papan-ppl-1.vercel.app" target="_blank">
     <img src="https://img.shields.io/badge/Live_Website-papan--ppl--1.vercel.app-000000?style=for-the-badge&logo=vercel" alt="Live Website" />
   </a>
