@@ -445,6 +445,10 @@
   font-family: 'Poppins', sans-serif;
 }
 
+.uploadCountReady {
+  color: #86efac;
+}
+
 .photoGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
