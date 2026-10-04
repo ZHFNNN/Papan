@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast"; // Import Toast
+import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   // Semua state yang dibutuhkan sesuai schema Prisma
@@ -52,19 +53,14 @@ export default function RegisterPage() {
 
       // 4. Handle Response
       if (response.ok) {
-        const loginResponse = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-            callbackUrl: `${window.location.origin}/personalisasi`,
-          }),
+        // Login otomatis lewat NextAuth supaya SessionProvider (Navbar) ikut ter-update
+        const loginResult = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
         });
 
-        if (loginResponse.ok) {
+        if (loginResult?.ok) {
           toast.success("Registrasi berhasil! Lanjut personalisasi...");
           setTimeout(() => {
             router.push("/personalisasi");

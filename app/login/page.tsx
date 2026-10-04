@@ -35,25 +35,16 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // 3. Panggil endpoint API Login
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          callbackUrl: callbackPath
-            ? new URL(callbackPath, window.location.origin).toString()
-            : undefined,
-        }),
+      // 3. Login lewat NextAuth langsung. signIn() juga memperbarui SessionProvider,
+      //    jadi Navbar langsung tahu user sudah login tanpa perlu reload.
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
 
-      const data = await response.json();
-
       // 4. Handle Response
-      if (response.ok) {
+      if (result?.ok) {
         let redirectPath = callbackPath || "/";
 
         if (!callbackPath) {
@@ -79,10 +70,7 @@ export default function LoginPage() {
           router.push(redirectPath);
         }, 500);
       } else {
-        toast.error(
-          data.message ||
-            "Login gagal, periksa kembali email dan password Anda.",
-        );
+        toast.error("Login gagal, periksa kembali email dan password Anda.");
       }
     } catch (error) {
       toast.error("Terjadi kesalahan jaringan. Coba lagi nanti.");

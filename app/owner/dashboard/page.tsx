@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { formatPrice } from '../../../lib/format-price';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -202,9 +203,10 @@ export default function OwnerDashboardPage() {
                     <div className={styles.propertyThumb}>
                       {Array.isArray(property.imageUrls) && property.imageUrls.length > 0 ? (
                         <img
-                          src={property.imageUrls[0]}
+                          src={optimizeImage(property.imageUrls[0], IMAGE_WIDTH.thumb * 2)}
                           alt={property.title}
                           className={styles.thumbImg}
+                          loading="lazy" decoding="async"
                         />
                       ) : (
                         <div className={styles.thumbPlaceholder}>

@@ -88,6 +88,30 @@
   gap: 12px;
 }
 
+@media (max-width: 900px) {
+  .formCard {
+    flex-direction: column;
+    padding: 24px;
+    gap: 24px;
+    border-radius: 22px;
+  }
+
+  .formRight {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .formCard {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .pageTitle {
+    font-size: 22px;
+  }
+}
+
 /* ── Field Group ── */
 .fieldGroup {
   display: flex;
@@ -166,6 +190,7 @@
 .listingTypeGroup {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .listingTypeBtn {

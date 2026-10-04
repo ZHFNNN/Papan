@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { formatPrice } from '@/lib/format-price';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { type ApiProperty, type PropertyCardData, mapApiPropertyToCard } from '@/types/property';
 import styles from './page.module.css';
 
@@ -339,7 +340,7 @@ function SearchPageContent() {
                     {recommendations.map((item) => (
                       <Link key={`rec-${item.id}`} href={`/propertyDetail/${item.id}`} className={styles.cardLink}>
                         <article className={styles.card}>
-                          <img src={item.images[0]} alt={item.title} className={styles.cardImage} />
+                          <img src={optimizeImage(item.images[0], IMAGE_WIDTH.card)} alt={item.title} className={styles.cardImage} loading="lazy" decoding="async" />
                           <div className={styles.cardBody}>
                             <p className={styles.cardTitle}>{item.title}</p>
                             <p className={styles.cardLocation}>{item.lokasi}</p>
@@ -364,7 +365,7 @@ function SearchPageContent() {
               {filteredItems.map((item) => (
                 <Link key={item.id} href={`/propertyDetail/${item.id}`} className={styles.cardLink}>
                   <article className={styles.card}>
-                    <img src={item.images[0]} alt={item.title} className={styles.cardImage} />
+                    <img src={optimizeImage(item.images[0], IMAGE_WIDTH.card)} alt={item.title} className={styles.cardImage} loading="lazy" decoding="async" />
                     <div className={styles.cardBody}>
                       <p className={styles.cardTitle}>{item.title}</p>
                       <p className={styles.cardLocation}>{item.lokasi}</p>

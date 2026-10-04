@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
 import { formatPrice } from '@/lib/format-price';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -530,7 +531,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
       {lightboxSrc && (
         <div className={styles.lightboxOverlay} onClick={() => setLightboxSrc(null)}>
           <button className={styles.lightboxClose} onClick={() => setLightboxSrc(null)}>✕</button>
-          <img src={lightboxSrc} alt="Review foto" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+          <img src={optimizeImage(lightboxSrc, IMAGE_WIDTH.detail)} alt="Review foto" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
@@ -554,7 +555,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
           <div className={styles.topSection}>
             <div className={styles.galleryWrapper}>
               <div className={styles.mainImage}>
-                <img src={activeImageSrc} alt={prop.title} />
+                <img src={optimizeImage(activeImageSrc, IMAGE_WIDTH.detail)} alt={prop.title} decoding="async" fetchPriority="high" />
               </div>
               <div className={styles.thumbnailColumn}>
                 {prop.images.map((src, i) => (
@@ -563,7 +564,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                     className={`${styles.thumbnail} ${activeImage === i ? styles.thumbnailActive : ''}`}
                     onClick={() => setActiveImage(i)}
                   >
-                    <img src={src} alt={`Foto ${i + 1}`} />
+                    <img src={optimizeImage(src, IMAGE_WIDTH.thumb * 2)} alt={`Foto ${i + 1}`} loading="lazy" decoding="async" />
                   </div>
                 ))}
               </div>
@@ -591,8 +592,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                 <div className={styles.agentAvatar}>
                   {prop.ownerImage ? (
                     <img
-                      src={prop.ownerImage}
+                      src={optimizeImage(prop.ownerImage, IMAGE_WIDTH.thumb)}
                       alt={prop.ownerName}
+                      loading="lazy" decoding="async"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                     />
                   ) : (
@@ -757,7 +759,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                   <div className={styles.reviewCardHeader}>
                     <div className={styles.reviewAvatar}>
                       {review.user.image
-                        ? <img src={review.user.image} alt={review.user.name ?? ''} />
+                        ? <img src={optimizeImage(review.user.image, IMAGE_WIDTH.thumb)} alt={review.user.name ?? ''} loading="lazy" decoding="async" />
                         : <span>{(review.user.name ?? review.user.username ?? '?').charAt(0).toUpperCase()}</span>
                       }
                     </div>
@@ -794,7 +796,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                           className={styles.reviewPhotoThumb}
                           onClick={() => setLightboxSrc(photo.data)}
                         >
-                          <img src={photo.data} alt="Foto ulasan" />
+                          <img src={optimizeImage(photo.data, IMAGE_WIDTH.thumb)} alt="Foto ulasan" loading="lazy" decoding="async" />
                         </div>
                       ))}
                     </div>

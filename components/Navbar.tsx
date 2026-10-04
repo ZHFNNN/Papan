@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import {
   type ApiProperty,
@@ -16,12 +17,28 @@ const NAV_ITEMS = [
   { href: "/notification", label: "Notification" },
 ];
 
+const UNREAD_POLL_MS = 15000;
+
+/**
+ * Cache tingkat modul: Navbar dirender ulang di setiap halaman, jadi tanpa cache
+ * ini nama user & badge chat di-fetch ulang (dan sempat kosong) tiap pindah page.
+ */
+let cachedUser: { id: string; displayName: string | null } | null = null;
+let cachedUnreadCount = 0;
+
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { data: session, status: sessionStatus } = useSession();
+  const userId = session?.user?.id ?? null;
+  const [displayName, setDisplayName] = useState<string | null>(() =>
+    cachedUser && cachedUser.id === userId ? cachedUser.displayName : null,
+  );
+  const [unreadCount, setUnreadCount] = useState(cachedUnreadCount);
+  const isLoggedIn = sessionStatus === "authenticated";
+  // Selama status login masih dicek, jangan arahkan ke /login
+  const isLoggedOut = sessionStatus === "unauthenticated";
   const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const searchWrapperRef = useRef<HTMLDivElement | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -67,27 +84,41 @@ export default function Navbar() {
     });
   }, [pathname]);
 
-  // Fetch current user
+  // Ambil username sekali per user, lalu simpan di cache modul
   useEffect(() => {
+    if (sessionStatus === "unauthenticated") {
+      cachedUser = null;
+      cachedUnreadCount = 0;
+      setDisplayName(null);
+      setUnreadCount(0);
+      return;
+    }
+    if (!userId || cachedUser?.id === userId) return;
+
     let isMounted = true;
-    const getCurrentUser = async () => {
+    const fallbackName = session?.user?.name || session?.user?.email || null;
+    (async () => {
+      let name = fallbackName;
       try {
         const res = await fetch("/api/auth/me");
-        if (!res.ok) { if (isMounted) setDisplayName(null); return; }
-        const data = (await res.json()) as {
-          user?: { username?: string | null; name?: string | null; email?: string | null };
-        };
-        const username = data.user?.username || data.user?.name || data.user?.email || null;
-        if (isMounted) setDisplayName(username);
-      } catch { if (isMounted) setDisplayName(null); }
-    };
-    getCurrentUser();
+        if (res.ok) {
+          const data = (await res.json()) as {
+            user?: { username?: string | null; name?: string | null; email?: string | null };
+          };
+          name = data.user?.username || data.user?.name || data.user?.email || fallbackName;
+        }
+      } catch {
+        // pakai nama dari session
+      }
+      cachedUser = { id: userId, displayName: name };
+      if (isMounted) setDisplayName(name);
+    })();
     return () => { isMounted = false; };
-  }, []);
+  }, [sessionStatus, userId, session?.user?.name, session?.user?.email]);
 
   // Fetch unread count untuk badge notif chat
   useEffect(() => {
-    if (!displayName) return;
+    if (!isLoggedIn) return;
     let isMounted = true;
     const fetchUnread = async () => {
       try {
@@ -98,13 +129,14 @@ export default function Navbar() {
         const total = Array.isArray(data)
           ? data.reduce((sum: number, c: { unreadCount?: number }) => sum + (c.unreadCount ?? 0), 0)
           : 0;
+        cachedUnreadCount = total;
         setUnreadCount(total);
       } catch { /* silent */ }
     };
     fetchUnread();
-    const interval = setInterval(fetchUnread, 15000);
+    const interval = setInterval(fetchUnread, UNREAD_POLL_MS);
     return () => { isMounted = false; clearInterval(interval); };
-  }, [displayName]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -156,6 +188,10 @@ export default function Navbar() {
   }, [searchQuery]);
 
   const isChatActive = pathname === "/chat" || pathname.startsWith("/chat/");
+  // Selagi username diambil, pakai nama dari session yang sudah tersedia
+  const profileLabel = isLoggedOut
+    ? "Login"
+    : displayName ?? session?.user?.name ?? (isLoggedIn ? "Profil" : "…");
 
   return (
     <div className="fixed top-3 sm:top-4 left-1/2 -translate-x-1/2 z-100 w-full max-w-[1040px] px-2.5 sm:px-3 md:px-4">
@@ -257,7 +293,7 @@ export default function Navbar() {
 
         {/* Chat Icon Button */}
         <Link
-          href={displayName ? "/chat" : `/login?callbackUrl=${encodeURIComponent("/chat")}`}
+          href={isLoggedOut ? `/login?callbackUrl=${encodeURIComponent("/chat")}` : "/chat"}
           aria-label="Pesan"
           className={`shrink-0 relative bg-[rgba(255,255,255,0.62)] backdrop-blur-md border border-[#9a9a9a] h-[38px] sm:h-[42px] md:h-[46px] w-[38px] sm:w-[42px] md:w-[46px] rounded-full flex items-center justify-center hover:bg-white/80 transition-all shadow-[0_5px_14px_rgba(0,0,0,0.06)] ${
             isChatActive ? "bg-white/90 border-[#19263c]/40" : ""
@@ -286,11 +322,11 @@ export default function Navbar() {
 
         {/* Right Section - Login/Profile Button */}
         <Link
-          href={displayName ? "/profile" : "/login"}
+          href={isLoggedOut ? "/login" : "/profile"}
           className="shrink-0 bg-[rgba(255,255,255,0.62)] backdrop-blur-md border border-[#9a9a9a] h-[38px] sm:h-[42px] md:h-[46px] rounded-[999px] w-[74px] sm:w-[100px] md:w-[128px] px-2 flex items-center justify-center text-[10px] sm:text-[11px] md:text-[12px] font-semibold text-[#171717] hover:bg-white/80 transition-all shadow-[0_5px_14px_rgba(0,0,0,0.06)]"
-          title={displayName ?? "Login"}
+          title={profileLabel}
         >
-          <span className="truncate">{displayName ? displayName : "Login"}</span>
+          <span className="truncate">{profileLabel}</span>
         </Link>
       </div>
     </div>
