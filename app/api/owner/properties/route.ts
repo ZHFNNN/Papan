@@ -7,7 +7,6 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { hasEnoughPhotos, minPhotosMessage, sanitizePhotoUrls } from '@/lib/property-photos';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
@@ -84,15 +83,9 @@ export async function POST(req: NextRequest) {
   const neighbourhood = typeof location?.neighbourhood === 'string' ? location.neighbourhood.trim() : null;
 
   const facilityInputs = Array.isArray(facilities) ? (facilities as string[]) : [];
-  const photoUrls = sanitizePhotoUrls(imageUrls);
-
-  // Validasi di server: minimal 4 foto, tidak bisa di-bypass dari client.
-  if (!hasEnoughPhotos(photoUrls.length)) {
-    return NextResponse.json(
-      { message: minPhotosMessage(photoUrls.length) },
-      { status: 400 }
-    );
-  }
+  const photoUrls = Array.isArray(imageUrls)
+    ? imageUrls.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
 
   const facilityRecords = await resolveFacilityRecords(facilityInputs);
 

@@ -4,7 +4,6 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
-import { MIN_PROPERTY_PHOTOS, hasEnoughPhotos, minPhotosMessage } from '@/lib/property-photos';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -26,7 +25,7 @@ type FormData = {
   facilities: string[];
 };
 
-type FormErrors = Partial<Record<keyof FormData | 'photos', string>>;
+type FormErrors = Partial<Record<keyof FormData, string>>;
 
 type FacilityOption = {
   code: string;
@@ -179,7 +178,6 @@ export default function AddPropertyPage() {
     const newPreviews = validFiles.map((f) => URL.createObjectURL(f));
     setPhotos((prev) => [...prev, ...validFiles]);
     setPhotoPreviews((prev) => [...prev, ...newPreviews]);
-    if (errors.photos) setErrors((prev) => ({ ...prev, photos: undefined }));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,7 +219,6 @@ export default function AddPropertyPage() {
     if (!form.description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
     if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
-    if (!hasEnoughPhotos(photos.length)) newErrors.photos = minPhotosMessage(photos.length);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -233,7 +230,7 @@ export default function AddPropertyPage() {
 
     try {
       const priceNum = Number(form.price.replace(/[^0-9]/g, ''));
-      const uploadedPhotoUrls = await uploadPhotosToCloudinary(photos);
+      const uploadedPhotoUrls = photos.length > 0 ? await uploadPhotosToCloudinary(photos) : [];
 
       // NOTE: Buat API route POST /api/owner/properties
       const res = await fetch('/api/owner/properties', {
@@ -547,12 +544,9 @@ export default function AddPropertyPage() {
               className={styles.hiddenInput}
               onChange={handlePhotoChange}
             />
-            <p
-              className={`${styles.uploadCount} ${hasEnoughPhotos(photos.length) ? styles.uploadCountReady : ''}`}
-            >
-              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Belum ada foto'} (minimal {MIN_PROPERTY_PHOTOS} foto)
+            <p className={styles.uploadCount}>
+              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Belum ada foto'}
             </p>
-            {errors.photos && <p className={styles.errorText}>{errors.photos}</p>}
           </div>
         </div>
 
