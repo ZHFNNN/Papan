@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
 import { formatPrice } from '@/lib/format-price';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -28,6 +29,9 @@ type PropertyDetail = {
   owner?: { id?: string | null; name?: string | null; username?: string | null; image?: string | null };
   facilities: Array<{ code: string; name: string }>;
   createdAt: string;
+  discountPercentage?: number | null;
+  discountActiveUntil?: string | null;
+  isDiscountActive?: boolean;
 };
 
 type ReviewPhoto = { id: string; data: string };
@@ -70,6 +74,10 @@ type DisplayProperty = {
   title: string;
   kategori: string;
   price: string;
+  originalPrice: string | null;
+  discountPercentage: number | null;
+  discountActiveUntil: string | null;
+  isDiscountActive: boolean;
   biayaHidup: string;
   lokasi: string;
   luas: string;
@@ -108,6 +116,18 @@ function mapApiProperty(data: PropertyDetail): DisplayProperty {
     .filter((v) => Boolean(v && v.trim()))
     .join(', ');
 
+  // Hitung diskon — hanya aktif kalau persentase > 0 dan belum kadaluarsa
+  const now = new Date();
+  const expiry = data.discountActiveUntil ? new Date(data.discountActiveUntil) : null;
+  const discountActive =
+    typeof data.discountPercentage === 'number' &&
+    data.discountPercentage > 0 &&
+    (expiry === null || expiry > now);
+  const numericPrice = Number(data.price);
+  const finalPrice = discountActive && Number.isFinite(numericPrice)
+    ? Math.round(numericPrice * (100 - (data.discountPercentage ?? 0)) / 100)
+    : numericPrice;
+
   return {
     id: data.id,
     title: data.title,
@@ -117,7 +137,11 @@ function mapApiProperty(data: PropertyDetail): DisplayProperty {
         : data.listingType === 'SELL'
           ? 'Properti Jual'
           : 'Properti',
-    price: formatPrice(data.price),
+    price: formatPrice(String(finalPrice)),
+    originalPrice: discountActive ? formatPrice(data.price) : null,
+    discountPercentage: discountActive ? (data.discountPercentage ?? null) : null,
+    discountActiveUntil: data.discountActiveUntil ?? null,
+    isDiscountActive: discountActive,
     biayaHidup: 'Estimasi biaya hidup: -',
     lokasi: lokasi || 'Lokasi belum tersedia',
     luas: '-',
@@ -530,7 +554,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
       {lightboxSrc && (
         <div className={styles.lightboxOverlay} onClick={() => setLightboxSrc(null)}>
           <button className={styles.lightboxClose} onClick={() => setLightboxSrc(null)}>✕</button>
-          <img src={lightboxSrc} alt="Review foto" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+          <img src={optimizeImage(lightboxSrc, IMAGE_WIDTH.detail)} alt="Review foto" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
@@ -554,7 +578,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
           <div className={styles.topSection}>
             <div className={styles.galleryWrapper}>
               <div className={styles.mainImage}>
-                <img src={activeImageSrc} alt={prop.title} />
+                <img src={optimizeImage(activeImageSrc, IMAGE_WIDTH.detail)} alt={prop.title} decoding="async" fetchPriority="high" />
               </div>
               <div className={styles.thumbnailColumn}>
                 {prop.images.map((src, i) => (
@@ -563,7 +587,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                     className={`${styles.thumbnail} ${activeImage === i ? styles.thumbnailActive : ''}`}
                     onClick={() => setActiveImage(i)}
                   >
-                    <img src={src} alt={`Foto ${i + 1}`} />
+                    <img src={optimizeImage(src, IMAGE_WIDTH.thumb * 2)} alt={`Foto ${i + 1}`} loading="lazy" decoding="async" />
                   </div>
                 ))}
               </div>
@@ -571,7 +595,24 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
 
             <div className={styles.priceCard}>
               <p className={styles.priceLabel}>Harga</p>
-              <p className={styles.priceValue}>{prop.price}</p>
+              {prop.isDiscountActive && prop.originalPrice ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>
+                  <span style={{ display: 'inline-block', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 999, width: 'fit-content' }}>
+                    PROMO -{prop.discountPercentage}%
+                  </span>
+                  <p style={{ textDecoration: 'line-through', color: '#888', fontSize: 14, margin: 0 }}>
+                    {prop.originalPrice}
+                  </p>
+                  <p className={styles.priceValue} style={{ color: '#dc2626' }}>{prop.price}</p>
+                  {prop.discountActiveUntil && (
+                    <p style={{ fontSize: 11, color: '#666', margin: 0 }}>
+                      Berlaku sampai {new Date(prop.discountActiveUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className={styles.priceValue}>{prop.price}</p>
+              )}
               <p className={styles.priceEstimate}>{prop.biayaHidup}</p>
 
           {prop.ownerId ? (
@@ -591,8 +632,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                 <div className={styles.agentAvatar}>
                   {prop.ownerImage ? (
                     <img
-                      src={prop.ownerImage}
+                      src={optimizeImage(prop.ownerImage, IMAGE_WIDTH.thumb)}
                       alt={prop.ownerName}
+                      loading="lazy" decoding="async"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                     />
                   ) : (
@@ -757,7 +799,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                   <div className={styles.reviewCardHeader}>
                     <div className={styles.reviewAvatar}>
                       {review.user.image
-                        ? <img src={review.user.image} alt={review.user.name ?? ''} />
+                        ? <img src={optimizeImage(review.user.image, IMAGE_WIDTH.thumb)} alt={review.user.name ?? ''} loading="lazy" decoding="async" />
                         : <span>{(review.user.name ?? review.user.username ?? '?').charAt(0).toUpperCase()}</span>
                       }
                     </div>
@@ -794,7 +836,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                           className={styles.reviewPhotoThumb}
                           onClick={() => setLightboxSrc(photo.data)}
                         >
-                          <img src={photo.data} alt="Foto ulasan" />
+                          <img src={optimizeImage(photo.data, IMAGE_WIDTH.thumb)} alt="Foto ulasan" loading="lazy" decoding="async" />
                         </div>
                       ))}
                     </div>

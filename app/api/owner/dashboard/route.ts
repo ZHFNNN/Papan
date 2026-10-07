@@ -47,8 +47,13 @@ export async function GET() {
   ]);
 
   const normalizedProperties = properties.map((property) => {
-    const { boosts, _count, ...plainProperty } = property;
+    const { boosts, _count, discountActiveUntil, ...plainProperty } = property;
     const activeBoost = boosts[0] ?? null;
+
+    const isDiscountActive =
+      typeof property.discountPercentage === 'number' &&
+      property.discountPercentage > 0 &&
+      (discountActiveUntil === null || (discountActiveUntil && discountActiveUntil > now));
 
     return {
       ...plainProperty,
@@ -68,6 +73,9 @@ export async function GET() {
             remainingDays: getRemainingDays(activeBoost.endsAt, now),
           }
         : null,
+      discountPercentage: property.discountPercentage ?? null,
+      discountActiveUntil: discountActiveUntil ? discountActiveUntil.toISOString() : null,
+      isDiscountActive: Boolean(isDiscountActive),
     };
   });
 
@@ -78,6 +86,7 @@ export async function GET() {
     soldProperties: 0,
     totalRevenue: 0,
     boostedProperties: normalizedProperties.filter((p) => p.isBoosted).length,
+    promoProperties: normalizedProperties.filter((p) => p.isDiscountActive).length,
   };
 
   return NextResponse.json({

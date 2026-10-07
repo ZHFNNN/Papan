@@ -51,33 +51,18 @@ function LoginPageContent() {
     setIsLoading(true);
 
     try {
-      // 3. Panggil endpoint API Login
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          callbackUrl: callbackPath
-            ? new URL(callbackPath, window.location.origin).toString()
-            : undefined,
-        }),
+      // 3. Panggil endpoint NextAuth langsung dari sisi klien
+      const response = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: callbackPath
+          ? new URL(callbackPath, window.location.origin).toString()
+          : undefined,
       });
 
-      let data: { message?: string } = {};
-      const contentType = response.headers.get("content-type") || "";
-
-      if (contentType.includes("application/json")) {
-        data = (await response.json()) as { message?: string };
-      } else {
-        const rawText = await response.text();
-        console.warn("Login API mengembalikan non-JSON response:", rawText.slice(0, 200));
-      }
-
       // 4. Handle Response
-      if (response.ok) {
+      if (response && response.ok && !response.error) {
         let redirectPath = "/auth/post-login";
 
         if (!callbackPath) {
@@ -98,15 +83,12 @@ function LoginPageContent() {
 
         toast.success("Login berhasil! Mengalihkan...");
 
-        // Jeda 1.5 detik agar notifikasi terlihat sebelum pindah halaman
+        // Jeda singkat agar notifikasi terlihat sebelum pindah halaman
         setTimeout(() => {
           router.push(redirectPath);
         }, 500);
       } else {
-        toast.error(
-          data.message ||
-            "Login gagal, periksa kembali email dan password Anda.",
-        );
+        toast.error("Login gagal, periksa kembali email dan password Anda.");
       }
     } catch (error) {
       toast.error("Terjadi kesalahan jaringan. Coba lagi nanti.");
@@ -169,12 +151,6 @@ function LoginPageContent() {
             >
               {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
             </button>
-          </div>
-
-          <div className={styles.forgotRow}>
-            <span className={styles.forgotLink} style={{ cursor: "pointer" }}>
-              Lupa kata sandi?
-            </span>
           </div>
         </div>
 

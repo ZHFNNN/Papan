@@ -73,7 +73,8 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    const verifyUrl = new URL("/api/auth/verify-email", request.url);
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(request.url).origin;
+    const verifyUrl = new URL("/api/auth/verify-email", baseUrl);
     verifyUrl.searchParams.set("email", normalizedEmail);
     verifyUrl.searchParams.set("token", verificationToken);
 

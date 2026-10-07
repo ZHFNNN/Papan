@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 const DEFAULT_AVATAR = '/images/ppdefault.png';
 
@@ -141,7 +142,8 @@ export default function OwnerProfilePage() {
                         <img
                           alt="Profile"
                           className={styles.avatarImage}
-                          src={avatarSrc}
+                          src={optimizeImage(avatarSrc, IMAGE_WIDTH.thumb * 2)}
+                          decoding="async"
                           onError={() => setAvatarSrc(DEFAULT_AVATAR)}
                         />
                         <div className={styles.avatarOverlay}>

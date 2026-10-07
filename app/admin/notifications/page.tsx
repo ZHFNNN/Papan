@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { signOut } from 'next-auth/react';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 type PropertyCategory = 'RUMAH' | 'APARTEMEN' | 'KOSAN';
 
@@ -53,6 +54,7 @@ export default function AdminNotificationsPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [filterCategory, setFilterCategory] = useState<PropertyCategory | 'ALL'>('ALL');
   const [filterCity, setFilterCity] = useState('');
+  const [notificationType, setNotificationType] = useState<'ADMIN_BROADCAST' | 'PROMO_SUGGESTION'>('ADMIN_BROADCAST');
   const safeImageUrl = sanitizeImageUrl(imageUrl);
 
   // Data state
@@ -119,6 +121,7 @@ export default function AdminNotificationsPage() {
           imageUrl: imageUrl.trim() || null,
           category: filterCategory !== 'ALL' ? filterCategory : null,
           city: filterCity.trim() || null,
+          type: notificationType,
         }),
       });
       const data = await res.json() as { message: string; count: number };
@@ -238,11 +241,53 @@ export default function AdminNotificationsPage() {
                 )}
               </div>
 
+              {/* Jenis Notifikasi */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Jenis Notifikasi</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationType('ADMIN_BROADCAST')}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: notificationType === 'ADMIN_BROADCAST' ? '2px solid #305496' : '1px solid #ccc',
+                      background: notificationType === 'ADMIN_BROADCAST' ? '#e7f0ff' : '#fff',
+                      cursor: 'pointer',
+                      fontWeight: notificationType === 'ADMIN_BROADCAST' ? 600 : 400,
+                    }}
+                  >
+                    📢 Broadcast Umum
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationType('PROMO_SUGGESTION')}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: notificationType === 'PROMO_SUGGESTION' ? '2px solid #dc2626' : '1px solid #ccc',
+                      background: notificationType === 'PROMO_SUGGESTION' ? '#ffe9e9' : '#fff',
+                      cursor: 'pointer',
+                      fontWeight: notificationType === 'PROMO_SUGGESTION' ? 600 : 400,
+                    }}
+                  >
+                    🏷️ Saran Promo
+                  </button>
+                </div>
+                <p style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
+                  {notificationType === 'PROMO_SUGGESTION'
+                    ? 'Notifikasi akan menampilkan tombol "Atur Promo" yang mengarah ke dashboard owner.'
+                    : 'Notifikasi umum tanpa CTA khusus.'}
+                </p>
+              </div>
+
               {/* Preview card */}
               <div className={styles.previewSection}>
                 <p className={styles.previewLabel}>Preview Notifikasi</p>
                 <div className={styles.previewCard}>
-                  <div className={styles.previewIcon}>🔔</div>
+                  <div className={styles.previewIcon}>{notificationType === 'PROMO_SUGGESTION' ? '🏷️' : '🔔'}</div>
                   <div className={styles.previewContent}>
                     <p className={styles.previewTitle}>{title || 'Judul notifikasi...'}</p>
                     <p className={styles.previewMsg}>{message ? message.slice(0, 80) + (message.length > 80 ? '...' : '') : 'Isi pesan akan muncul di sini...'}</p>
@@ -341,7 +386,7 @@ export default function AdminNotificationsPage() {
                   <div key={n.id} className={styles.historyItem}>
                     {n.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={n.imageUrl} alt="" className={styles.historyImg} />
+                      <img src={optimizeImage(n.imageUrl, IMAGE_WIDTH.thumb)} alt="" className={styles.historyImg} loading="lazy" decoding="async" />
                     )}
                     <div className={styles.historyContent}>
                       <p className={styles.historyTitle}>{n.title}</p>
