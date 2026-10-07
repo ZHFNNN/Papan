@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   FIXED_CRITERIA_WEIGHTS,
+  filterRequiredFacilities,
   normalizeBudgetScore,
   normalizeFacilityScore,
+  normalizeGenderScore,
   normalizeLocationScore,
 } from "@/lib/dss/scoring";
 
@@ -40,17 +42,10 @@ describe("normalizeBudgetScore — basis path coverage", () => {
     expect(normalizeBudgetScore(7_000_000, 3_000_000, 7_000_000)).toBe(1);
   });
 
-  // P3: price < min, min > 0  -> linear penalty
-  it("P3: returns partial score when price is below min", () => {
-    // (min - price) / min = (3jt - 2jt) / 3jt = 0.333..
-    // score = 1 - 0.333.. = 0.666..
+  // P3: price < min (lebih murah dari min) -> tetap return 1 (tidak kena penalti)
+  it("P3: returns 1 when price is below min (affordable is better)", () => {
     const score = normalizeBudgetScore(2_000_000, 3_000_000, 7_000_000);
-    expect(score).toBeCloseTo(2 / 3, 4);
-  });
-
-  // P4: price < min, min <= 0  -> guard return 0
-  it("P4: returns 0 when min <= 0 and price < min", () => {
-    expect(normalizeBudgetScore(-100, 0, 7_000_000)).toBe(0);
+    expect(score).toBe(1);
   });
 
   // P5: price > max, max > 0  -> linear penalty
@@ -66,14 +61,38 @@ describe("normalizeBudgetScore — basis path coverage", () => {
     expect(normalizeBudgetScore(5_000_000, -10_000_000, 0)).toBe(0);
   });
 
-  // P3 ekstrim: penalty terjepit ke 0 oleh Math.max
-  it("P3 (extreme): clamps to 0 when price is far below min", () => {
-    expect(normalizeBudgetScore(-100_000_000, 3_000_000, 7_000_000)).toBe(0);
-  });
-
   // P5 ekstrim: penalty terjepit ke 0 oleh Math.max
   it("P5 (extreme): clamps to 0 when price is far above max", () => {
     expect(normalizeBudgetScore(100_000_000, 3_000_000, 7_000_000)).toBe(0);
+  });
+});
+
+describe("normalizeGenderScore — branch coverage", () => {
+  it("returns 1 for non-kosan categories (Rumah / Apartemen)", () => {
+    expect(normalizeGenderScore("Perempuan", "Kost Putri", "RUMAH")).toBe(1);
+    expect(normalizeGenderScore("Laki-laki", "Kost Putra", "APARTEMEN")).toBe(1);
+  });
+
+  it("returns 1 when userGender is null or empty", () => {
+    expect(normalizeGenderScore(null, "Kost Putri", "KOSAN")).toBe(1);
+    expect(normalizeGenderScore("", "Kost Putra", "KOSAN")).toBe(1);
+  });
+
+  it("returns 0.8 for campur kos", () => {
+    expect(normalizeGenderScore("Perempuan", "Kost Campur Sakura", "KOSAN")).toBe(0.8);
+    expect(normalizeGenderScore("Laki-laki", "Kost Campur Harmoni", "KOSAN")).toBe(0.8);
+  });
+
+  it("correctly scores female users", () => {
+    expect(normalizeGenderScore("Perempuan", "Kost Putri Melati", "KOSAN")).toBe(1);
+    expect(normalizeGenderScore("Perempuan", "Kost Khusus Pria", "KOSAN")).toBe(0);
+    expect(normalizeGenderScore("Perempuan", "Kosan Asri Tanpa Tag", "KOSAN")).toBe(0.9);
+  });
+
+  it("correctly scores male users", () => {
+    expect(normalizeGenderScore("Laki-laki", "Kost Putra Perkasa", "KOSAN")).toBe(1);
+    expect(normalizeGenderScore("Laki-laki", "Kost Khusus Wanita", "KOSAN")).toBe(0);
+    expect(normalizeGenderScore("Laki-laki", "Kosan Asri Tanpa Tag", "KOSAN")).toBe(0.9);
   });
 });
 
@@ -162,5 +181,29 @@ describe("FIXED_CRITERIA_WEIGHTS contract", () => {
       FIXED_CRITERIA_WEIGHTS.location +
       FIXED_CRITERIA_WEIGHTS.facilities;
     expect(total).toBeCloseTo(1, 5);
+  });
+});
+
+describe("filterRequiredFacilities — filtering contract", () => {
+  const dummyProperties = [
+    { id: "1", facilities: [{ facility: { code: "AC" } }, { facility: { code: "WIFI" } }] },
+    { id: "2", facilities: [{ facility: { code: "WIFI" } }] },
+    { id: "3", facilities: [{ facility: { code: "AC" } }, { facility: { code: "PARKIR_MOBIL" } }] },
+  ];
+
+  it("returns all properties when requiredFacilityCodes is empty", () => {
+    const result = filterRequiredFacilities(dummyProperties, []);
+    expect(result).toHaveLength(3);
+  });
+
+  it("filters properties that have all required facilities", () => {
+    const result = filterRequiredFacilities(dummyProperties, ["AC", "WIFI"]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("1");
+  });
+
+  it("falls back to all properties when no property matches all required", () => {
+    const result = filterRequiredFacilities(dummyProperties, ["SWIMMING_POOL"]);
+    expect(result).toHaveLength(3);
   });
 });

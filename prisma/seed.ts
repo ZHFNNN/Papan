@@ -87,10 +87,25 @@ function buildFinalProperties() {
         if (lType === "RENT" && cat !== "KOSAN") basePrice = 6_000_000;
         const price = basePrice + (Math.floor(Math.random() * 30) * 100_000);
 
+        let title = `${cat.charAt(0) + cat.slice(1).toLowerCase()} di ${neighbourhood} #${globalCount}`;
+        let description = getRandomDesc();
+
+        // Variasikan tipe kosan berdasarkan target penghuni (gender)
+        if (cat === "KOSAN") {
+          const kosTypes = [
+            { prefix: "Kost Putri", note: "Khusus mahasiswi / karyawati putri." },
+            { prefix: "Kost Putra", note: "Khusus mahasiswa / pria." },
+            { prefix: "Kost Campur", note: "Bisa untuk putra maupun putri / pasutri." },
+          ];
+          const chosen = kosTypes[i % kosTypes.length];
+          title = `${chosen.prefix} di ${neighbourhood} #${globalCount}`;
+          description = `${chosen.note} ${description}`;
+        }
+
         result.push({
-          title: `${cat.charAt(0) + cat.slice(1).toLowerCase()} di ${neighbourhood} #${globalCount}`,
+          title,
           category: cat,
-          description: getRandomDesc(),
+          description,
           price,
           listingType: lType,
           facilityCodes,

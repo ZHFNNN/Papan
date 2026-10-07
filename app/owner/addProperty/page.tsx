@@ -43,8 +43,15 @@ const CATEGORY_OPTIONS: { value: PropertyCategory; label: string }[] = [
   { value: 'KOSAN', label: 'Kosan' },
 ];
 
+const KOS_GENDER_OPTIONS: { value: 'Kost Putri' | 'Kost Putra' | 'Kost Campur'; label: string }[] = [
+  { value: 'Kost Putri', label: 'Kost Putri' },
+  { value: 'Kost Putra', label: 'Kost Putra' },
+  { value: 'Kost Campur', label: 'Kost Campur' },
+];
+
 export default function AddPropertyPage() {
   const router = useRouter();
+  const [kosGender, setKosGender] = useState<'Kost Putri' | 'Kost Putra' | 'Kost Campur'>('Kost Campur');
   const [form, setForm] = useState<FormData>({
     title: '',
     address: '',
@@ -232,12 +239,28 @@ export default function AddPropertyPage() {
       const priceNum = Number(form.price.replace(/[^0-9]/g, ''));
       const uploadedPhotoUrls = photos.length > 0 ? await uploadPhotosToCloudinary(photos) : [];
 
+      let finalTitle = form.title.trim();
+      if (form.category === 'KOSAN') {
+        const lowerTitle = finalTitle.toLowerCase();
+        const alreadyPrefixed =
+          lowerTitle.startsWith('kost putri') ||
+          lowerTitle.startsWith('kost putra') ||
+          lowerTitle.startsWith('kost campur') ||
+          lowerTitle.startsWith('kos putri') ||
+          lowerTitle.startsWith('kos putra') ||
+          lowerTitle.startsWith('kos campur');
+
+        if (!alreadyPrefixed) {
+          finalTitle = `${kosGender} ${finalTitle}`;
+        }
+      }
+
       // NOTE: Buat API route POST /api/owner/properties
       const res = await fetch('/api/owner/properties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: form.title,
+          title: finalTitle,
           description: form.description,
           price: priceNum,
           listingType: form.listingType,
@@ -352,6 +375,25 @@ export default function AddPropertyPage() {
               </div>
               {errors.category && <p className={styles.errorText}>{errors.category}</p>}
             </div>
+
+            {/* Tipe Kos (Gender) - Tampil jika Kategori KOSAN dipilih */}
+            {form.category === 'KOSAN' && (
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>Tipe Kos (Target Penghuni)</label>
+                <div className={styles.listingTypeGroup}>
+                  {KOS_GENDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setKosGender(opt.value)}
+                      className={`${styles.listingTypeBtn} ${kosGender === opt.value ? styles.listingTypeBtnActive : ''}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Tipe Listing */}
             <div className={styles.fieldGroup}>

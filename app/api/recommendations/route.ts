@@ -3,8 +3,10 @@ import { requireAuth } from "@/lib/require-user";
 import { personalizationBooleanCodes } from "@/lib/dss/facility-mapping";
 import {
   FIXED_CRITERIA_WEIGHTS,
+  filterRequiredFacilities,
   normalizeBudgetScore,
   normalizeFacilityScore,
+  normalizeGenderScore,
   normalizeLocationScore,
 } from "@/lib/dss/scoring";
 
@@ -22,6 +24,7 @@ export async function GET() {
       where: { userId },
       select: {
         location: true,
+        gender: true,
         budgetMin: true,
         budgetMax: true,
         prefFurnished: true,
@@ -35,7 +38,8 @@ export async function GET() {
     }),
     prisma.userPreferenceFacility.findMany({
       where: { userId },
-      include: {
+      select: {
+        isRequired: true,
         facility: {
           select: {
             code: true,
@@ -59,6 +63,7 @@ export async function GET() {
     select: {
       id: true,
       title: true,
+      category: true,
       address: true,
       city: true,
       district: true,
@@ -114,9 +119,25 @@ export async function GET() {
   });
   const selectedFacilityCodes = relationalPreferredCodes.length > 0 ? relationalPreferredCodes : fallbackPreferredCodes;
 
-  const scored = properties.map((property) => {
+  // Fasilitas yang ditandai sebagai wajib (must-have)
+  const requiredFacilityCodes = preferenceFacilities
+    .filter((pref) => pref.isRequired)
+    .map((pref) => pref.facility.code);
+
+  // Saring properti yang memenuhi semua fasilitas wajib (jika ada); jika tidak ada, fallback ke semua properti
+  const propertiesToScore = filterRequiredFacilities(properties, requiredFacilityCodes);
+
+  const scoredCandidates = propertiesToScore.map((property) => {
     const priceNumber = Number(property.price);
     const text = `${property.title} ${property.description ?? ""} ${property.address ?? ""} ${property.neighbourhood ?? ""} ${property.district ?? ""} ${property.city ?? ""}`.toLowerCase();
+
+    // Cek kecocokan gender (khusus KOSAN)
+    const genderScore = normalizeGenderScore(personalization.gender, `${property.title} ${property.description ?? ""}`, property.category);
+
+    // Jika kosan dilarang untuk gender pengguna (skor 0), eliminasi dari rekomendasi
+    if (genderScore === 0) {
+      return null;
+    }
 
     const budgetScore = normalizeBudgetScore(priceNumber, personalization.budgetMin, personalization.budgetMax);
     const locationScore = normalizeLocationScore(personalization.location, text);
@@ -134,6 +155,7 @@ export async function GET() {
     return {
       id: property.id,
       title: property.title,
+      category: property.category,
       listingType: property.listingType,
       coverImageUrl: property.imageUrls[0] ?? null,
       images: property.imageUrls,
@@ -156,12 +178,16 @@ export async function GET() {
         budgetScore: Number(budgetScore.toFixed(4)),
         locationScore: Number(locationScore.toFixed(4)),
         facilityScore: Number(facilityResult.score.toFixed(4)),
+        genderScore: Number(genderScore.toFixed(4)),
         matchedFacilityCodes: facilityResult.matched,
         selectedFacilityCodes,
         propertyFacilityCodes,
+        requiredFacilityCodes,
       },
     };
   });
+
+  const scored = scoredCandidates.filter((item): item is NonNullable<typeof item> => item !== null);
 
   scored.sort((a, b) => {
     if (a.isBoosted !== b.isBoosted) {
