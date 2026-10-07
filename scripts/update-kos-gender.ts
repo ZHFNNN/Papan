@@ -1,10 +1,13 @@
-﻿import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/prisma";
 
 async function main() {
   console.log("Mencari properti kategori KOSAN di database...");
 
   const kosans = await prisma.property.findMany({
-    where: { category: "KOSAN" },
+    where: {
+      category: "KOSAN",
+      owner: { email: "owner-demo@papan.local" },
+    },
     select: { id: true, title: true, description: true },
     orderBy: { createdAt: "asc" },
   });
