@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -25,7 +26,7 @@ type FormData = {
   facilities: string[];
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
+type FormErrors = Partial<Record<keyof FormData | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -178,6 +179,7 @@ export default function AddPropertyPage() {
     const newPreviews = validFiles.map((f) => URL.createObjectURL(f));
     setPhotos((prev) => [...prev, ...validFiles]);
     setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,6 +221,9 @@ export default function AddPropertyPage() {
     if (!form.description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
     if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
+    if (photos.length < MIN_PROPERTY_PHOTOS) {
+      newErrors.photos = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (kamu baru memilih ${photos.length}).`;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -514,7 +519,7 @@ export default function AddPropertyPage() {
                     <path d="m21 15-5-5L5 21" />
                   </svg>
                   <p className={styles.uploadText}>Upload Foto Properti</p>
-                  <p className={styles.uploadHint}>Klik atau drag & drop</p>
+                  <p className={styles.uploadHint}>Klik atau drag & drop (minimal {MIN_PROPERTY_PHOTOS} foto)</p>
                 </div>
               ) : (
                 <div className={styles.photoGrid}>
@@ -545,8 +550,9 @@ export default function AddPropertyPage() {
               onChange={handlePhotoChange}
             />
             <p className={styles.uploadCount}>
-              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Belum ada foto'}
+              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Belum ada foto'} (minimal {MIN_PROPERTY_PHOTOS})
             </p>
+            {errors.photos && <p className={styles.errorText}>{errors.photos}</p>}
           </div>
         </div>
 

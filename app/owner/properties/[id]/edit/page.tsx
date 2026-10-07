@@ -3,8 +3,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from '@/app/owner/addProperty/page.module.css';
-import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import type { PickedLocation } from '@/components/MapPicker';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -28,7 +28,7 @@ type FormData = {
   discountActiveUntil: string;      // YYYY-MM-DD dari <input type="date"> atau kosong
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
+type FormErrors = Partial<Record<keyof FormData | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -305,6 +305,7 @@ export default function EditPropertyPage() {
     if (!valid.length) return;
     setNewPhotos((prev)        => [...prev, ...valid]);
     setNewPhotoPreviews((prev) => [...prev, ...valid.map((f) => URL.createObjectURL(f))]);
+    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => appendPhotoFiles(Array.from(e.target.files ?? []));
@@ -332,8 +333,8 @@ export default function EditPropertyPage() {
     if (!form.description.trim()) next.description = 'Deskripsi wajib diisi.';
     if (!form.listingType)        next.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category)           next.category    = 'Kategori properti wajib dipilih.';
-    if (existingImageUrls.length + newPhotos.length === 0)
-                                  next.facilities  = 'Minimal harus ada 1 foto properti.';
+    if (existingImageUrls.length + newPhotos.length < MIN_PROPERTY_PHOTOS)
+                                  next.photos      = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (saat ini ${existingImageUrls.length + newPhotos.length}).`;
 
     // Validasi diskon — opsional
     const discRaw = form.discountPercentage.trim();
@@ -634,13 +635,13 @@ export default function EditPropertyPage() {
                   <path d="m21 15-5-5L5 21" />
                 </svg>
                 <p className={styles.uploadText}>Upload Foto Properti</p>
-                <p className={styles.uploadHint}>Klik atau drag & drop</p>
+                <p className={styles.uploadHint}>Klik atau drag & drop (minimal {MIN_PROPERTY_PHOTOS} foto)</p>
               </div>
             ) : (
               <div className={styles.photoGrid}>
                 {existingImageUrls.map((src, i) => (
                   <div key={`existing-${i}`} className={styles.photoThumb}>
-                    <img src={optimizeImage(src, IMAGE_WIDTH.thumb * 2)} alt={`existing-${i}`} className={styles.thumbImg} loading="lazy" decoding="async" />
+                    <img src={src} alt={`existing-${i}`} className={styles.thumbImg} />
                     <button type="button" className={styles.removePhotoBtn} onClick={(e) => { e.preventDefault(); removeExistingImage(i); }}>×</button>
                   </div>
                 ))}
@@ -658,8 +659,9 @@ export default function EditPropertyPage() {
           <p className={styles.uploadCount}>
             {existingImageUrls.length + newPhotos.length > 0
               ? `${existingImageUrls.length + newPhotos.length} foto dipilih`
-              : 'Belum ada foto'}
+              : 'Belum ada foto'} (minimal {MIN_PROPERTY_PHOTOS})
           </p>
+          {errors.photos && <p className={styles.errorText}>{errors.photos}</p>}
         </div>
       </div>
 
