@@ -1,6 +1,11 @@
 import { KycStatus, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import {
+  getCachedPropertyList,
+  invalidatePropertyListCache,
+  setCachedPropertyList,
+} from '@/lib/property-list-cache';
 import { requireAuth } from '@/lib/require-user';
 
 const createPropertySchema = z.object({
@@ -50,6 +55,12 @@ export async function GET(request: Request) {
   const take = Number.isFinite(takeRaw)
     ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200)
     : 120;
+
+  const cacheKey = JSON.stringify([categoryFilter, listingTypeFilter, searchQuery ?? '', promoOnly, take]);
+  const cached = getCachedPropertyList(cacheKey);
+  if (cached) {
+    return Response.json(cached);
+  }
 
   const now = new Date();
   const conditions: Prisma.PropertyWhereInput[] = [];
@@ -140,44 +151,30 @@ export async function GET(request: Request) {
     },
   } satisfies Prisma.PropertyInclude;
 
-  const boosted = await prisma.property.findMany({
-    where: {
-      ...baseWhere,
-      boosts: {
-        some: {
-          endsAt: {
-            gt: now,
-          },
-        },
+  // Dua query dijalankan paralel (bukan berurutan) supaya respons lebih cepat.
+  // Properti boosted selalu di depan, sisanya diisi properti biasa sampai `take`.
+  const [boosted, nonBoostedCandidates] = await Promise.all([
+    prisma.property.findMany({
+      where: {
+        ...baseWhere,
+        boosts: { some: { endsAt: { gt: now } } },
       },
-    },
-    include: includeConfig,
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take,
-  });
+      include: includeConfig,
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+    prisma.property.findMany({
+      where: {
+        ...baseWhere,
+        boosts: { none: { endsAt: { gt: now } } },
+      },
+      include: includeConfig,
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+  ]);
 
-  const remaining = Math.max(take - boosted.length, 0);
-  const nonBoosted = remaining
-    ? await prisma.property.findMany({
-        where: {
-          ...baseWhere,
-          boosts: {
-            none: {
-              endsAt: {
-                gt: now,
-              },
-            },
-          },
-        },
-        include: includeConfig,
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: remaining,
-      })
-    : [];
+  const nonBoosted = nonBoostedCandidates.slice(0, Math.max(take - boosted.length, 0));
 
   const data = [...boosted, ...nonBoosted].map((property) => {
     const activeBoost = property.boosts[0] ?? null;
@@ -213,10 +210,13 @@ export async function GET(request: Request) {
     };
   });
 
-  return Response.json({
+  const body = {
     message: 'Daftar properti berhasil diambil.',
     data,
-  });
+  };
+  setCachedPropertyList(cacheKey, body);
+
+  return Response.json(body);
 }
 
 export async function POST(request: Request) {
@@ -261,5 +261,6 @@ export async function POST(request: Request) {
     }
   });
 
+  invalidatePropertyListCache();
   return Response.json({ message: 'Listing berhasil dibuat', data: property }, { status: 201 });
 }

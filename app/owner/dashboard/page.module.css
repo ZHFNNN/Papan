@@ -645,3 +645,38 @@
   font-weight: 500;
   font-family: 'Poppins', sans-serif;
 }
+/* ── Responsive property card ── */
+@media (max-width: 640px) {
+  .propertyCard,
+  .skeletonPropertyCard {
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .propertyThumb,
+  .skeletonThumb {
+    width: 88px;
+    height: 68px;
+  }
+
+  .propertyActions,
+  .skeletonActions {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .skeletonActions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .boostBtn,
+  .editBtn,
+  .deleteBtn {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}

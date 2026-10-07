@@ -3,6 +3,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from '@/app/owner/addProperty/page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import type { PickedLocation } from '@/components/MapPicker';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
@@ -639,7 +640,7 @@ export default function EditPropertyPage() {
               <div className={styles.photoGrid}>
                 {existingImageUrls.map((src, i) => (
                   <div key={`existing-${i}`} className={styles.photoThumb}>
-                    <img src={src} alt={`existing-${i}`} className={styles.thumbImg} />
+                    <img src={optimizeImage(src, IMAGE_WIDTH.thumb * 2)} alt={`existing-${i}`} className={styles.thumbImg} loading="lazy" decoding="async" />
                     <button type="button" className={styles.removePhotoBtn} onClick={(e) => { e.preventDefault(); removeExistingImage(i); }}>×</button>
                   </div>
                 ))}

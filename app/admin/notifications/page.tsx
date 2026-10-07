@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { signOut } from 'next-auth/react';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 type PropertyCategory = 'RUMAH' | 'APARTEMEN' | 'KOSAN';
 
@@ -385,7 +386,7 @@ export default function AdminNotificationsPage() {
                   <div key={n.id} className={styles.historyItem}>
                     {n.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={n.imageUrl} alt="" className={styles.historyImg} />
+                      <img src={optimizeImage(n.imageUrl, IMAGE_WIDTH.thumb)} alt="" className={styles.historyImg} loading="lazy" decoding="async" />
                     )}
                     <div className={styles.historyContent}>
                       <p className={styles.historyTitle}>{n.title}</p>

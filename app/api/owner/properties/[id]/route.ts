@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
@@ -242,6 +243,7 @@ export async function PATCH(
     Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
   );
 
+  invalidatePropertyListCache();
   return NextResponse.json(
     {
       ...updated,
@@ -281,5 +283,6 @@ export async function DELETE(
 
   await prisma.property.delete({ where: { id } });
 
+  invalidatePropertyListCache();
   return NextResponse.json({ message: 'Properti berhasil dihapus.' });
 }
