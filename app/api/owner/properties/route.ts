@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
@@ -123,5 +124,6 @@ export async function POST(req: NextRequest) {
     Prisma.sql`UPDATE "Property" SET "category" = ${normalizedCategory}::"PropertyCategory" WHERE "id" = ${property.id}`,
   );
 
+  invalidatePropertyListCache();
   return NextResponse.json(property, { status: 201 });
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { BOOST_PACKAGES, type BoosterPackage } from '@/lib/booster';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -349,7 +350,7 @@ function StepProperty({ properties, selectedPkg, isLoading, onAddToCart, cartCou
               <div key={prop.id} className={`${styles.propertyCard} ${inCart ? styles.propertyCardInCart : ''}`}>
                 <div className={styles.propThumb}>
                   {prop.imageUrls?.length > 0
-                    ? <img src={prop.imageUrls[0]} alt={prop.title} className={styles.propImg} />
+                    ? <img src={optimizeImage(prop.imageUrls[0], IMAGE_WIDTH.thumb * 2)} alt={prop.title} className={styles.propImg} loading="lazy" decoding="async" />
                     : <div className={styles.propImgPlaceholder}>🏠</div>}
                 </div>
                 <div className={styles.propInfo}>

@@ -1,5 +1,6 @@
 import { KycStatus } from '@prisma/client';
 import { z } from 'zod';
+import { invalidateRoleCache } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/require-user';
 
@@ -53,6 +54,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     return kyc;
   });
+  invalidateRoleCache(submission.userId);
 
   return Response.json({ message: 'KYC ditolak', data: updated });
 }

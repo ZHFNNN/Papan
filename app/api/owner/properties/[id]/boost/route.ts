@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import {
   BOOST_PACKAGES,
   getBoostEndsAt,
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     },
   });
 
+  invalidatePropertyListCache();
   return NextResponse.json(
     {
       message: 'Booster berhasil diaktifkan.',

@@ -463,8 +463,8 @@
 
 .avatarButtonBig {
   position: relative;
-  width: 230px;
-  height: 230px;
+  width: clamp(150px, 55vw, 230px);
+  height: clamp(150px, 55vw, 230px);
   border-radius: 50%;
   overflow: hidden;
   border: 3px solid rgba(255, 255, 255, 0.2);

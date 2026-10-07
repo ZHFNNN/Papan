@@ -282,11 +282,13 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.75rem;
-  max-width: 240px;
+	width: 100%;
+	max-width: none;
 }
 
 .editButton {
-	width: 1040px;
+	width: 100%;
+	max-width: none;
 	background: #ffffff;
 	border: 2px solid #19263c;
 	border-radius: 16px;
@@ -655,6 +657,57 @@
 
 /* ── Responsive KYC card ── */
 @media (max-width: 480px) {
+	.contentArea {
+		padding: 6rem 0.75rem 3rem;
+	}
+
+	.profileCard {
+		padding: 0.875rem;
+		border-radius: 18px;
+	}
+
+	.profileCardInner {
+		gap: 1rem;
+	}
+
+	.avatarWrapper {
+		width: 88px;
+		height: 88px;
+	}
+
+	.avatarHelpText {
+		font-size: 11px;
+		margin-left: 0;
+		margin-top: 6px;
+	}
+
+	.fieldsGrid {
+		row-gap: 0.65rem;
+	}
+
+	.fieldValueWrapper {
+		padding: 0.5rem 0.75rem;
+		border-radius: 14px;
+	}
+
+	.fieldValue {
+		font-size: 11px;
+	}
+
+	.actionButtons {
+		max-width: 100%;
+	}
+
+	.editButton {
+		border-radius: 14px;
+		padding: 0.65rem 0.75rem;
+		border-width: 1.5px;
+	}
+
+	.editButtonText {
+		font-size: 13px;
+	}
+
   .kycCard {
     flex-direction: column;
     align-items: flex-start;
