@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   FIXED_CRITERIA_WEIGHTS,
+  getEffectivePrice,
   normalizeBudgetScore,
   normalizeFacilityScore,
   normalizeLocationScore,
+  resolveCriteriaWeights,
+  scoreProperty,
 } from "@/lib/dss/scoring";
 
 /**
@@ -162,5 +165,177 @@ describe("FIXED_CRITERIA_WEIGHTS contract", () => {
       FIXED_CRITERIA_WEIGHTS.location +
       FIXED_CRITERIA_WEIGHTS.facilities;
     expect(total).toBeCloseTo(1, 5);
+  });
+});
+
+describe("resolveCriteriaWeights — bobot kriteria per pengguna", () => {
+  // W1: user belum punya baris UserCriteriaWeight -> bobot default (perilaku lama)
+  it("W1: falls back to default weights when the user has no rows", () => {
+    const result = resolveCriteriaWeights([]);
+    expect(result.source).toBe("default");
+    expect(result.weights).toEqual({ budget: 0.4, location: 0.3, facilities: 0.3 });
+  });
+
+  // W2: semua kriteria diisi -> dinormalisasi supaya total = 1
+  it("W2: normalizes user weights so they sum to 1", () => {
+    const result = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: 3 },
+      { criteria: "LOCATION", weight: 1 },
+      { criteria: "FACILITIES", weight: 1 },
+    ]);
+    expect(result.source).toBe("user_criteria_weight");
+    expect(result.weights.budget).toBeCloseTo(0.6, 5);
+    expect(result.weights.location).toBeCloseTo(0.2, 5);
+    expect(result.weights.facilities).toBeCloseTo(0.2, 5);
+  });
+
+  // W3: kriteria tanpa baris memakai bobot 1 (sama dengan @default(1) di schema)
+  it("W3: uses weight 1 for criteria without a row", () => {
+    const result = resolveCriteriaWeights([{ criteria: "LOCATION", weight: 2 }]);
+    expect(result.source).toBe("user_criteria_weight");
+    expect(result.weights.budget).toBeCloseTo(0.25, 5);
+    expect(result.weights.location).toBeCloseTo(0.5, 5);
+    expect(result.weights.facilities).toBeCloseTo(0.25, 5);
+  });
+
+  // W4: GENDER belum dihitung -> tidak ikut normalisasi
+  it("W4: ignores the GENDER weight because the criterion is not scored yet", () => {
+    const result = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: 1 },
+      { criteria: "LOCATION", weight: 1 },
+      { criteria: "FACILITIES", weight: 2 },
+      { criteria: "GENDER", weight: 4 },
+    ]);
+    expect(result.weights.budget).toBeCloseTo(0.25, 5);
+    expect(result.weights.location).toBeCloseTo(0.25, 5);
+    expect(result.weights.facilities).toBeCloseTo(0.5, 5);
+  });
+
+  // W5: hanya baris GENDER -> dianggap belum mengatur bobot
+  it("W5: falls back to default weights when only GENDER is set", () => {
+    const result = resolveCriteriaWeights([{ criteria: "GENDER", weight: 5 }]);
+    expect(result.source).toBe("default");
+    expect(result.weights).toEqual({ budget: 0.4, location: 0.3, facilities: 0.3 });
+  });
+
+  // W6: bobot negatif / NaN diperlakukan sebagai 0
+  it("W6: treats negative and NaN weights as 0", () => {
+    const result = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: -2 },
+      { criteria: "LOCATION", weight: Number.NaN },
+      { criteria: "FACILITIES", weight: 1 },
+    ]);
+    expect(result.weights).toEqual({ budget: 0, location: 0, facilities: 1 });
+  });
+
+  // W7: total bobot efektif 0 -> fallback default (hindari pembagian dengan 0)
+  it("W7: falls back to default weights when every weight is 0 or Infinity", () => {
+    const result = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: 0 },
+      { criteria: "LOCATION", weight: 0 },
+      { criteria: "FACILITIES", weight: Number.POSITIVE_INFINITY },
+    ]);
+    expect(result.source).toBe("default");
+    expect(result.weights).toEqual({ budget: 0.4, location: 0.3, facilities: 0.3 });
+  });
+});
+
+describe("getEffectivePrice — harga setelah diskon aktif", () => {
+  const now = new Date("2026-10-07T12:00:00Z");
+  const tomorrow = new Date("2026-10-08T12:00:00Z");
+  const yesterday = new Date("2026-10-06T12:00:00Z");
+
+  // E1: diskon aktif -> harga dipotong
+  it("E1: applies an active discount", () => {
+    const price = getEffectivePrice(
+      { price: 2_000_000, discountPercentage: 10, discountActiveUntil: tomorrow },
+      now,
+    );
+    expect(price).toBe(1_800_000);
+  });
+
+  // E2: diskon kedaluwarsa -> harga normal
+  it("E2: ignores an expired discount", () => {
+    const price = getEffectivePrice(
+      { price: 2_000_000, discountPercentage: 10, discountActiveUntil: yesterday },
+      now,
+    );
+    expect(price).toBe(2_000_000);
+  });
+
+  // E3: diskon tanpa tanggal berakhir dianggap aktif (sama dengan aturan home page)
+  it("E3: treats a discount without an end date as active", () => {
+    const price = getEffectivePrice(
+      { price: 2_000_000, discountPercentage: 25, discountActiveUntil: null },
+      now,
+    );
+    expect(price).toBe(1_500_000);
+  });
+
+  // E4: tidak ada diskon (null / 0) -> harga normal
+  it("E4: returns the normal price when there is no discount", () => {
+    expect(
+      getEffectivePrice({ price: 2_000_000, discountPercentage: null, discountActiveUntil: null }, now),
+    ).toBe(2_000_000);
+    expect(
+      getEffectivePrice({ price: 2_000_000, discountPercentage: 0, discountActiveUntil: tomorrow }, now),
+    ).toBe(2_000_000);
+  });
+
+  // E5: boundary — tepat di waktu berakhir, diskon sudah tidak berlaku
+  it("E5 (boundary): discount is no longer active exactly at its end time", () => {
+    const price = getEffectivePrice(
+      { price: 2_000_000, discountPercentage: 10, discountActiveUntil: now },
+      now,
+    );
+    expect(price).toBe(2_000_000);
+  });
+});
+
+describe("scoreProperty — skor SAW satu properti", () => {
+  const now = new Date("2026-10-07T12:00:00Z");
+
+  // S1: skor budget memakai harga setelah diskon, bukan harga normal
+  it("S1: scores the budget criterion with the discounted price", () => {
+    const result = scoreProperty(
+      {
+        price: 2_200_000,
+        discountPercentage: 10,
+        discountActiveUntil: null,
+        searchText: "kos di jatinangor",
+        facilityCodes: [],
+      },
+      { budgetMin: 0, budgetMax: 2_000_000, location: null, facilityCodes: [] },
+      { budget: 0.4, location: 0.3, facilities: 0.3 },
+      now,
+    );
+    // harga efektif 1.980.000 masuk budget -> budgetScore 1
+    // total = 0.4*1 + 0.3*0.5 + 0.3*0.5 = 0.7 (kalau pakai harga normal: 0.4*0.9 + 0.3 = 0.66)
+    expect(result.effectivePrice).toBe(1_980_000);
+    expect(result.budgetScore).toBe(1);
+    expect(result.score).toBeCloseTo(0.7, 5);
+  });
+
+  // S2: tiap bobot dipasangkan ke kriteria yang benar
+  it("S2: applies each weight to its own criterion", () => {
+    const result = scoreProperty(
+      {
+        price: 2_500_000,
+        discountPercentage: null,
+        discountActiveUntil: null,
+        searchText: "kos di jatinangor",
+        facilityCodes: ["AC", "WIFI"],
+      },
+      { budgetMin: 1_000_000, budgetMax: 2_000_000, location: "bandung", facilityCodes: ["AC"] },
+      { budget: 0.5, location: 0.2, facilities: 0.3 },
+      now,
+    );
+    // budget = 1 - (2.5jt - 2jt) / 2jt = 0.75, lokasi = 0, fasilitas = 1
+    // total = 0.5*0.75 + 0.2*0 + 0.3*1 = 0.675 (bobot tertukar memberi 0.45 / 0.725 / 0.575)
+    expect(result.budgetScore).toBeCloseTo(0.75, 5);
+    expect(result.locationScore).toBe(0);
+    expect(result.facilityScore).toBe(1);
+    expect(result.matchedFacilityCodes).toEqual(["AC"]);
+    expect(result.score).toBeCloseTo(0.675, 5);
   });
 });
