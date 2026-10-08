@@ -111,6 +111,7 @@ model Property {
   longitude   Float?
   imageUrls   String[]           @default([])
   description String?
+  genderTarget String?
   price       Decimal
   listingType String
   discountPercentage  Int?

@@ -26,7 +26,7 @@ type FormData = {
   facilities: string[];
 };
 
-type FormErrors = Partial<Record<keyof FormData | 'photos', string>>;
+type FormErrors = Partial<Record<keyof FormData | 'genderTarget' | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -44,8 +44,15 @@ const CATEGORY_OPTIONS: { value: PropertyCategory; label: string }[] = [
   { value: 'KOSAN', label: 'Kosan' },
 ];
 
+const KOS_GENDER_OPTIONS: { value: 'PUTRI' | 'PUTRA' | 'CAMPUR'; label: string }[] = [
+  { value: 'PUTRI', label: 'Kost Putri' },
+  { value: 'PUTRA', label: 'Kost Putra' },
+  { value: 'CAMPUR', label: 'Kost Campur' },
+];
+
 export default function AddPropertyPage() {
   const router = useRouter();
+  const [genderTarget, setGenderTarget] = useState<'PUTRI' | 'PUTRA' | 'CAMPUR' | ''>('');
   const [form, setForm] = useState<FormData>({
     title: '',
     address: '',
@@ -221,6 +228,9 @@ export default function AddPropertyPage() {
     if (!form.description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
     if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
+    if (form.category === 'KOSAN' && !genderTarget) {
+      newErrors.genderTarget = 'Tipe gender kosan wajib dipilih (Putri, Putra, atau Campur).';
+    }
     if (photos.length < MIN_PROPERTY_PHOTOS) {
       newErrors.photos = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (kamu baru memilih ${photos.length}).`;
     }
@@ -242,11 +252,12 @@ export default function AddPropertyPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: form.title,
-          description: form.description,
+          title: form.title.trim(),
+          description: form.description.trim(),
           price: priceNum,
           listingType: form.listingType,
           category: form.category,
+          genderTarget: form.category === 'KOSAN' ? genderTarget : null,
           address: form.address,
           location: {
             lat: form.locationLat,
@@ -357,6 +368,31 @@ export default function AddPropertyPage() {
               </div>
               {errors.category && <p className={styles.errorText}>{errors.category}</p>}
             </div>
+
+            {/* Tipe Kos (Gender) - Wajib jika Kategori KOSAN dipilih */}
+            {form.category === 'KOSAN' && (
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>
+                  Tipe Kos (Target Penghuni) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <div className={styles.listingTypeGroup}>
+                  {KOS_GENDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setGenderTarget(opt.value);
+                        setErrors((prev) => ({ ...prev, genderTarget: undefined }));
+                      }}
+                      className={`${styles.listingTypeBtn} ${genderTarget === opt.value ? styles.listingTypeBtnActive : ''}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {errors.genderTarget && <p className={styles.errorText}>{errors.genderTarget}</p>}
+              </div>
+            )}
 
             {/* Tipe Listing */}
             <div className={styles.fieldGroup}>
