@@ -1,15 +1,24 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/require-user';
+import { MAX_REVIEW_PHOTOS, isReviewPhotoUrl } from '@/lib/review-photos';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+// Foto harus URL hasil POST /api/uploads/review (bukan base64 / URL sembarang)
 const createReviewSchema = z.object({
   rating: z.coerce.number().int().min(1).max(5),
   comment: z.string().optional(),
-  photos: z.array(z.string().min(1)).max(5).optional(),
+  photos: z
+    .array(
+      z.string().refine((url) => isReviewPhotoUrl(url, process.env.CLOUDINARY_CLOUD_NAME), {
+        message: 'Foto ulasan tidak valid. Unggah ulang foto.',
+      }),
+    )
+    .max(MAX_REVIEW_PHOTOS)
+    .optional(),
 });
 
 // GET /api/properties/:id/reviews

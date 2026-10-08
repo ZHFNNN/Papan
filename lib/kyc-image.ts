@@ -8,13 +8,13 @@
  * sampai dipindahkan dengan scripts/migrate-kyc-images-private.ts.
  */
 
+// Relatif (bukan '@/') supaya tetap jalan dari scripts/ via tsx
+import { parseCloudinaryUploadUrl } from './image';
+
 export const KYC_IMAGE_KINDS = ['ktp', 'selfie'] as const;
 export type KycImageKind = (typeof KYC_IMAGE_KINDS)[number];
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const CLOUDINARY_HOST = 'res.cloudinary.com';
-// URL lama selalu berupa secure_url hasil upload (tanpa segmen transformasi).
-const CLOUDINARY_UPLOAD_PATH = /^\/[^/]+\/image\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i;
 
 export function isKycImageKind(value: string): value is KycImageKind {
   return (KYC_IMAGE_KINDS as readonly string[]).includes(value);
@@ -57,15 +57,6 @@ export function isLegacyKycImageUrl(ref: string): boolean {
  * Mengembalikan null untuk URL yang bukan upload gambar Cloudinary.
  */
 export function parseLegacyCloudinaryUrl(url: string): { publicId: string } | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-
-  if (parsed.protocol !== 'https:' || parsed.hostname !== CLOUDINARY_HOST) return null;
-
-  const match = CLOUDINARY_UPLOAD_PATH.exec(decodeURIComponent(parsed.pathname));
-  return match ? { publicId: match[1] } : null;
+  const parsed = parseCloudinaryUploadUrl(url);
+  return parsed ? { publicId: parsed.publicId } : null;
 }
