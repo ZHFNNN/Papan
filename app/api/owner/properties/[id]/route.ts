@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
@@ -246,6 +247,9 @@ export async function PATCH(
     );
   }
 
+  // Harga, diskon, foto, dan kategori tampil di daftar properti publik
+  invalidatePropertyListCache();
+
   const categoryRow = await prisma.$queryRaw<CategoryRow[]>(
     Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
   );
@@ -288,6 +292,7 @@ export async function DELETE(
   }
 
   await prisma.property.delete({ where: { id } });
+  invalidatePropertyListCache();
 
   return NextResponse.json({ message: 'Properti berhasil dihapus.' });
 }
