@@ -4,6 +4,12 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from '@/app/owner/addProperty/page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
+import {
+  KOSAN_GENDER_OPTIONS,
+  KOSAN_GENDER_REQUIRED_MESSAGE,
+  normalizeGenderTarget,
+  type KosanGenderTarget,
+} from '@/lib/property-input';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
@@ -28,7 +34,7 @@ type FormData = {
   discountActiveUntil: string;      // YYYY-MM-DD dari <input type="date"> atau kosong
 };
 
-type FormErrors = Partial<Record<keyof FormData | 'photos', string>>;
+type FormErrors = Partial<Record<keyof FormData | 'genderTarget' | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -48,6 +54,7 @@ type PropertyResponse = {
   description?: string | null;
   listingType?: string;
   category?: string;
+  genderTarget?: string | null;
   imageUrls?: string[];
   facilities?: Array<{ facility?: { code?: string; name?: string } }>;
   discountPercentage?: number | null;
@@ -114,6 +121,7 @@ export default function EditPropertyPage() {
     discountPercentage: '', discountActiveUntil: '',
   });
 
+  const [genderTarget, setGenderTarget]               = useState<KosanGenderTarget | ''>('');
   const [errors, setErrors]                           = useState<FormErrors>({});
   const [isLoading, setIsLoading]                     = useState(true);
   const [isSubmitting, setIsSubmitting]               = useState(false);
@@ -235,6 +243,7 @@ export default function EditPropertyPage() {
             ? data.discountActiveUntil.slice(0, 10)  // ISO → YYYY-MM-DD untuk <input type="date">
             : '',
         });
+        setGenderTarget(normalizeGenderTarget(data.genderTarget) ?? '');
         setExistingImageUrls(Array.isArray(data.imageUrls) ? data.imageUrls : []);
       } catch (err: any) {
         if (!cancelled) setLoadError(err.message ?? 'Gagal memuat properti.');
@@ -333,6 +342,8 @@ export default function EditPropertyPage() {
     if (!form.description.trim()) next.description = 'Deskripsi wajib diisi.';
     if (!form.listingType)        next.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category)           next.category    = 'Kategori properti wajib dipilih.';
+    if (form.category === 'KOSAN' && !genderTarget)
+                                  next.genderTarget = KOSAN_GENDER_REQUIRED_MESSAGE;
     if (existingImageUrls.length + newPhotos.length < MIN_PROPERTY_PHOTOS)
                                   next.photos      = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (saat ini ${existingImageUrls.length + newPhotos.length}).`;
 
@@ -385,6 +396,7 @@ export default function EditPropertyPage() {
           price:       Number(form.price.replace(/[^0-9]/g, '')),
           listingType: listingTypeToApi(form.listingType),
           category:    form.category,
+          genderTarget: form.category === 'KOSAN' ? genderTarget : null,
           address:     form.address,
           location: {
             lat:           form.locationLat,
@@ -475,6 +487,31 @@ export default function EditPropertyPage() {
             </div>
             {errors.category && <p className={styles.errorText}>{errors.category}</p>}
           </div>
+
+          {/* Tipe Kos (Gender) - Wajib jika Kategori KOSAN dipilih */}
+          {form.category === 'KOSAN' && (
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>
+                Tipe Kos (Target Penghuni) <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <div className={styles.listingTypeGroup}>
+                {KOSAN_GENDER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setGenderTarget(opt.value);
+                      setErrors((prev) => ({ ...prev, genderTarget: undefined }));
+                    }}
+                    className={`${styles.listingTypeBtn} ${genderTarget === opt.value ? styles.listingTypeBtnActive : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {errors.genderTarget && <p className={styles.errorText}>{errors.genderTarget}</p>}
+            </div>
+          )}
 
           <div className={styles.fieldGroup}>
             <label className={styles.label}>Tipe Listing</label>

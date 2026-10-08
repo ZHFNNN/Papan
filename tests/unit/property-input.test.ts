@@ -1,10 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
+  KOSAN_GENDER_REQUIRED_MESSAGE,
   customFacilityCode,
   normalizeCategory,
   normalizeGenderTarget,
   normalizeListingType,
+  resolveGenderTarget,
 } from "@/lib/property-input";
+
+describe("resolveGenderTarget", () => {
+  const required = { ok: false, message: KOSAN_GENDER_REQUIRED_MESSAGE };
+
+  it("changes the gender of an existing kosan when a new one is sent", () => {
+    expect(resolveGenderTarget("KOSAN", "PUTRA", "PUTRI")).toEqual({ ok: true, genderTarget: "PUTRA" });
+  });
+
+  it("clears the gender when a kosan becomes another category", () => {
+    expect(resolveGenderTarget("RUMAH", undefined, "PUTRI")).toEqual({ ok: true, genderTarget: null });
+    expect(resolveGenderTarget("APARTEMEN", "PUTRI", "PUTRI")).toEqual({ ok: true, genderTarget: null });
+  });
+
+  it("keeps the stored gender when the request does not send one (older clients)", () => {
+    expect(resolveGenderTarget("KOSAN", undefined, "CAMPUR")).toEqual({ ok: true, genderTarget: "CAMPUR" });
+  });
+
+  it("requires a gender when a property becomes a kosan", () => {
+    expect(resolveGenderTarget("KOSAN", undefined, null)).toEqual(required);
+    expect(resolveGenderTarget("KOSAN", "PUTRI", null)).toEqual({ ok: true, genderTarget: "PUTRI" });
+  });
+
+  it("rejects an invalid or emptied gender instead of silently keeping the old one", () => {
+    expect(resolveGenderTarget("KOSAN", "pria", "PUTRA")).toEqual(required);
+    expect(resolveGenderTarget("KOSAN", null, "PUTRA")).toEqual(required);
+    expect(resolveGenderTarget("KOSAN", "", "PUTRA")).toEqual(required);
+  });
+
+  it("normalises the casing of the requested gender", () => {
+    expect(resolveGenderTarget("KOSAN", "putri", null)).toEqual({ ok: true, genderTarget: "PUTRI" });
+  });
+});
 
 describe("normalizeCategory", () => {
   it("accepts the three categories regardless of case and spaces", () => {
