@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -296,7 +296,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
   }, [propertyId]);
 
   // ── Fetch reviews ───────────────────────────────────────────
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     setReviewsLoading(true);
     try {
       const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/reviews`);
@@ -305,11 +305,11 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
     } catch { /* silent */ } finally {
       setReviewsLoading(false);
     }
-  };
+  }, [propertyId]);
 
   useEffect(() => {
     if (propertyId) fetchReviews();
-  }, [propertyId]);
+  }, [propertyId, fetchReviews]);
 
   useEffect(() => {
     let cancelled = false;

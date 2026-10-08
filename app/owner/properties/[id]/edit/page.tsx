@@ -204,9 +204,7 @@ export default function EditPropertyPage() {
         const presets: FacilityOption[] = Array.isArray(json2.data) ? json2.data : [];
         const presetCodes = new Set(presets.map((p) => p.code));
 
-        // Custom = code yang tidak ada di preset
-        const loadedCustomCodes = allFacilityCodes.filter((c) => !presetCodes.has(c));
-        // Nama custom diambil dari data facilities
+        // Fasilitas custom = code yang tidak ada di preset, namanya diambil dari data facilities
         const loadedCustomNames: string[] = [];
         if (Array.isArray(data.facilities)) {
           for (const item of data.facilities) {
@@ -245,8 +243,8 @@ export default function EditPropertyPage() {
         });
         setGenderTarget(normalizeGenderTarget(data.genderTarget) ?? '');
         setExistingImageUrls(Array.isArray(data.imageUrls) ? data.imageUrls : []);
-      } catch (err: any) {
-        if (!cancelled) setLoadError(err.message ?? 'Gagal memuat properti.');
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Gagal memuat properti.');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -415,8 +413,8 @@ export default function EditPropertyPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan perubahan.');
       router.push('/owner/dashboard');
-    } catch (err: any) {
-      setSubmitError(err.message ?? 'Terjadi kesalahan. Coba lagi.');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Terjadi kesalahan. Coba lagi.');
     } finally {
       setIsSubmitting(false);
     }

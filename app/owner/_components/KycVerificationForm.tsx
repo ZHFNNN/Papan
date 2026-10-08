@@ -114,7 +114,6 @@ function UploadArea({ label, icon, subtext, url, uploading, readOnly, error, onT
       >
         {url ? (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={url} alt={label} className={styles.uploadPreview} />
             {!readOnly && (
               <button className={styles.changeBtn} onClick={(e) => { e.stopPropagation(); onTrigger(); }}>
