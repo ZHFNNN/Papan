@@ -6,51 +6,12 @@
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
+import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
-
-const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
-const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
-type CategoryRow = { category: 'RUMAH' | 'APARTEMEN' | 'KOSAN' | null };
-
-function normalizeCategory(category: unknown): (typeof ALLOWED_CATEGORIES)[number] | null {
-  if (typeof category !== 'string') return null;
-  const normalized = category.trim().toUpperCase();
-  return ALLOWED_CATEGORIES.includes(normalized as (typeof ALLOWED_CATEGORIES)[number])
-    ? (normalized as (typeof ALLOWED_CATEGORIES)[number])
-    : null;
-}
-
-function normalizeListingType(listingType: unknown): (typeof ALLOWED_LISTING_TYPES)[number] | null {
-  if (typeof listingType !== 'string') return null;
-  const normalized = listingType.trim().toUpperCase();
-  if (normalized === 'SELL') return 'JUAL';
-  if (normalized === 'RENT' || normalized === 'KOSAN') return 'SEWA';
-  return ALLOWED_LISTING_TYPES.includes(normalized as (typeof ALLOWED_LISTING_TYPES)[number])
-    ? (normalized as (typeof ALLOWED_LISTING_TYPES)[number])
-    : null;
-}
-
-// Support code preset maupun nama custom (upsert)
-async function resolveFacilityRecords(inputs: string[]): Promise<{ id: string }[]> {
-  return Promise.all(
-    inputs.map(async (input) => {
-      // Cek apakah ini code preset yang sudah ada di DB
-      const byCode = await prisma.facility.findUnique({ where: { code: input } });
-      if (byCode) return { id: byCode.id };
-
-      // Anggap nama custom — upsert by generated code
-      const code = `custom_${input.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
-      const result = await prisma.facility.upsert({
-        where: { code },
-        update: {},
-        create: { code, name: input },
-      });
-      return { id: result.id };
-    })
-  );
-}
+import { normalizeCategory, normalizeListingType, resolveGenderTarget } from '@/lib/property-input';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 export async function GET(
   req: NextRequest,
@@ -87,14 +48,9 @@ export async function GET(
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
-  const categoryRow = await prisma.$queryRaw<CategoryRow[]>(
-    Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
-  );
-
   return NextResponse.json(
     {
       ...property,
-      category: categoryRow[0]?.category ?? null,
       discountPercentage: property.discountPercentage ?? null,
       discountActiveUntil: property.discountActiveUntil
         ? property.discountActiveUntil.toISOString()
@@ -121,7 +77,7 @@ export async function PATCH(
 
   const existing = await prisma.property.findUnique({
     where: { id },
-    select: { ownerId: true },
+    select: { ownerId: true, category: true, genderTarget: true },
   });
 
   if (!existing) {
@@ -134,7 +90,7 @@ export async function PATCH(
 
   const body = await req.json();
   const {
-    title, description, price, listingType, category, facilities, address, location, imageUrls,
+    title, description, price, listingType, category, genderTarget, facilities, address, location, imageUrls,
     discountPercentage, discountActiveUntil,
   } = body;
   const normalizedCategory    = normalizeCategory(category);
@@ -146,6 +102,12 @@ export async function PATCH(
 
   if (category !== undefined && !normalizedCategory) {
     return NextResponse.json({ message: 'Kategori properti tidak valid.' }, { status: 400 });
+  }
+
+  // Gender mengikuti kategori akhir: kosan wajib punya gender, selain kosan dikosongkan
+  const gender = resolveGenderTarget(normalizedCategory ?? existing.category, genderTarget, existing.genderTarget);
+  if (!gender.ok) {
+    return NextResponse.json({ message: gender.message }, { status: 400 });
   }
 
   // Validasi diskon
@@ -192,6 +154,13 @@ export async function PATCH(
     ? imageUrls.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0)
     : null;
 
+  if (photoUrls && photoUrls.length < MIN_PROPERTY_PHOTOS) {
+    return NextResponse.json(
+      { message: `Minimal ${MIN_PROPERTY_PHOTOS} foto properti.` },
+      { status: 400 }
+    );
+  }
+
   // Resolve facilities — support code preset + nama custom
   const facilityRecords = facilityItems ? await resolveFacilityRecords(facilityItems) : [];
 
@@ -199,6 +168,8 @@ export async function PATCH(
     where: { id },
     data: {
       title,
+      ...(normalizedCategory ? { category: normalizedCategory } : {}),
+      genderTarget: gender.genderTarget,
       ...(typeof address === 'string' ? { address } : {}),
       ...(location
         ? { city, district, neighbourhood, latitude, longitude }
@@ -232,21 +203,11 @@ export async function PATCH(
     },
   });
 
-  if (category !== undefined && normalizedCategory) {
-    await prisma.$executeRaw(
-      Prisma.sql`UPDATE "Property" SET "category" = ${normalizedCategory}::"PropertyCategory" WHERE "id" = ${id}`,
-    );
-  }
-
-  const categoryRow = await prisma.$queryRaw<CategoryRow[]>(
-    Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
-  );
+  // Harga, diskon, foto, dan kategori tampil di daftar properti publik
+  invalidatePropertyListCache();
 
   return NextResponse.json(
-    {
-      ...updated,
-      category: categoryRow[0]?.category ?? null,
-    },
+    updated,
     {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -280,6 +241,7 @@ export async function DELETE(
   }
 
   await prisma.property.delete({ where: { id } });
+  invalidatePropertyListCache();
 
   return NextResponse.json({ message: 'Properti berhasil dihapus.' });
 }

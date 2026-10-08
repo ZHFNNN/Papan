@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import styles from "./page.module.css";
@@ -153,8 +154,8 @@ export default function AboutPage() {
           <div className={styles.ctaBandInner}>
             <h2 className={styles.ctaBandTitle}>Siap Menemukan Properti Impianmu?</h2>
             <div className={styles.ctaBandBtns}>
-              <a href="/" className={styles.btnPrimary}>Mulai Cari Properti</a>
-              <a href="/kontak" className={styles.btnSecondary}>Hubungi Kami</a>
+              <Link href="/" className={styles.btnPrimary}>Mulai Cari Properti</Link>
+              <Link href="/contact" className={styles.btnSecondary}>Hubungi Kami</Link>
             </div>
           </div>
         </section>

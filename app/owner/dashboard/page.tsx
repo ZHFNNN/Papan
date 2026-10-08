@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { formatPrice } from '../../../lib/format-price';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -108,7 +109,7 @@ export default function OwnerDashboardPage() {
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch('/api/owner/dashboard');
       if (!res.ok) {
@@ -126,11 +127,11 @@ export default function OwnerDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchDashboard();
-  }, [router]);
+  }, [fetchDashboard]);
 
   const openDeleteModal = (property: Property) => {
     setDeleteCandidate({ id: property.id, title: property.title });
@@ -256,9 +257,10 @@ export default function OwnerDashboardPage() {
                     <div className={styles.propertyThumb}>
                       {Array.isArray(property.imageUrls) && property.imageUrls.length > 0 ? (
                         <img
-                          src={property.imageUrls[0]}
+                          src={optimizeImage(property.imageUrls[0], IMAGE_WIDTH.thumb * 2)}
                           alt={property.title}
                           className={styles.thumbImg}
+                          loading="lazy" decoding="async"
                         />
                       ) : (
                         <div className={styles.thumbPlaceholder}>

@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 const DEFAULT_AVATAR = '/images/ppdefault.png';
 
@@ -22,66 +23,6 @@ type UserProfile = {
   kycStatus: KycStatus;
   createdAt: string;
 };
-
-const KYC_CONFIG: Record<KycStatus, {
-  emoji: string;
-  title: string;
-  desc: string;
-  btnLabel?: string;
-  btnHref?: string;
-  colorClass: string;
-}> = {
-  NONE: {
-    emoji: '🔒',
-    title: 'Belum Terverifikasi',
-    desc: 'Verifikasi identitasmu untuk bisa menambahkan properti dan mengakses semua fitur PAPAN.',
-    btnLabel: 'Mulai Verifikasi',
-    btnHref: '/owner/verify',
-    colorClass: 'kycNone',
-  },
-  PENDING: {
-    emoji: '⏳',
-    title: 'Sedang Ditinjau',
-    desc: 'Pengajuan verifikasi kamu sedang diproses oleh tim kami. Proses peninjauan 1×24 jam kerja.',
-    colorClass: 'kycPending',
-  },
-  APPROVED: {
-    emoji: '✅',
-    title: 'Terverifikasi',
-    desc: 'Identitasmu telah berhasil diverifikasi. Kamu bisa menambahkan dan mengelola properti.',
-    btnLabel: 'Tambah Properti',
-    btnHref: '/owner/addProperty',
-    colorClass: 'kycApproved',
-  },
-  REJECTED: {
-    emoji: '❌',
-    title: 'Pengajuan Ditolak',
-    desc: 'Pengajuan verifikasimu ditolak. Silakan cek catatan admin dan ajukan ulang.',
-    btnLabel: 'Ajukan Ulang',
-    btnHref: '/owner/verify',
-    colorClass: 'kycRejected',
-  },
-};
- 
-function KycStatusCard({ status, onNavigate }: { status: KycStatus; onNavigate: (href: string) => void }) {
-  const config = KYC_CONFIG[status];
-  return (
-    <div className={`${styles.kycCard} ${styles[config.colorClass]}`}>
-      <div className={styles.kycLeft}>
-        <span className={styles.kycEmoji}>{config.emoji}</span>
-        <div>
-          <p className={styles.kycTitle}>Status KYC: {config.title}</p>
-          <p className={styles.kycDesc}>{config.desc}</p>
-        </div>
-      </div>
-      {config.btnLabel && config.btnHref && (
-        <button className={styles.kycBtn} onClick={() => onNavigate(config.btnHref!)}>
-          {config.btnLabel}
-        </button>
-      )}
-    </div>
-  );
-}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -210,7 +151,8 @@ export default function ProfilePage() {
                         <img
                           alt="Profile"
                           className={styles.avatarImage}
-                          src={avatarSrc}
+                          src={optimizeImage(avatarSrc, IMAGE_WIDTH.thumb * 2)}
+                          decoding="async"
                           onError={() => setAvatarSrc(DEFAULT_AVATAR)}
                         />
                         <div className={styles.avatarOverlay}>

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 // GET /api/conversations
 // Ambil semua conversation milik user yang sedang login
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

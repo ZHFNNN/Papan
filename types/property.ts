@@ -47,6 +47,8 @@ export type PropertySuggestion = {
 	lokasi: string;
 };
 
+export const MIN_PROPERTY_PHOTOS = 4;
+
 export const FALLBACK_PROPERTY_IMAGE =
 	'https://images.unsplash.com/photo-1494526585095-c41746248156?w=1200&q=80';
 

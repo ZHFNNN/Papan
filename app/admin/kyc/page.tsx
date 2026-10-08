@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
+import { IMAGE_WIDTH } from '@/lib/image';
 import { signOut } from 'next-auth/react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,6 +48,13 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+/** Foto KYC bersifat privat, jadi selalu dimuat lewat API yang mengecek akses admin. */
+function kycImageSrc(submissionId: string, kind: 'ktp' | 'selfie', width?: number) {
+  const params = new URLSearchParams({ submissionId });
+  if (width) params.set('w', String(width));
+  return `/api/kyc/image/${kind}?${params.toString()}`;
+}
+
 const STATUS_LABEL: Record<KycStatus, string> = {
   PENDING: 'Menunggu',
   APPROVED: 'Disetujui',
@@ -74,7 +82,7 @@ function DetailModal({ submission, onClose, onReview, reviewing }: ModalProps) {
       {activeImg && (
         <div className={styles.lightbox} onClick={() => setActiveImg(null)}>
           <img
-            src={activeImg === 'ktp' ? submission.ktpImageUrl : submission.selfieImageUrl}
+            src={kycImageSrc(submission.id, activeImg, IMAGE_WIDTH.detail)}
             alt={activeImg}
             className={styles.lightboxImg}
             onClick={(e) => e.stopPropagation()}
@@ -112,8 +120,10 @@ function DetailModal({ submission, onClose, onReview, reviewing }: ModalProps) {
               <div className={styles.photoBox}>
                 <span className={styles.photoLabel}>Foto KTP</span>
                 <img
-                  src={submission.ktpImageUrl}
+                  src={kycImageSrc(submission.id, 'ktp', IMAGE_WIDTH.card)}
                   alt="KTP"
+                  loading="lazy"
+                  decoding="async"
                   className={styles.photoThumb}
                   onClick={() => setActiveImg('ktp')}
                 />
@@ -121,8 +131,10 @@ function DetailModal({ submission, onClose, onReview, reviewing }: ModalProps) {
               <div className={styles.photoBox}>
                 <span className={styles.photoLabel}>Selfie + KTP</span>
                 <img
-                  src={submission.selfieImageUrl}
+                  src={kycImageSrc(submission.id, 'selfie', IMAGE_WIDTH.card)}
                   alt="Selfie"
+                  loading="lazy"
+                  decoding="async"
                   className={styles.photoThumb}
                   onClick={() => setActiveImg('selfie')}
                 />

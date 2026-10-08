@@ -4,6 +4,8 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
+import { KOSAN_GENDER_OPTIONS, KOSAN_GENDER_REQUIRED_MESSAGE, type KosanGenderTarget } from '@/lib/property-input';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -25,7 +27,7 @@ type FormData = {
   facilities: string[];
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
+type FormErrors = Partial<Record<keyof FormData | 'genderTarget' | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -45,6 +47,7 @@ const CATEGORY_OPTIONS: { value: PropertyCategory; label: string }[] = [
 
 export default function AddPropertyPage() {
   const router = useRouter();
+  const [genderTarget, setGenderTarget] = useState<KosanGenderTarget | ''>('');
   const [form, setForm] = useState<FormData>({
     title: '',
     address: '',
@@ -178,6 +181,7 @@ export default function AddPropertyPage() {
     const newPreviews = validFiles.map((f) => URL.createObjectURL(f));
     setPhotos((prev) => [...prev, ...validFiles]);
     setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,6 +223,12 @@ export default function AddPropertyPage() {
     if (!form.description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
     if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
+    if (form.category === 'KOSAN' && !genderTarget) {
+      newErrors.genderTarget = KOSAN_GENDER_REQUIRED_MESSAGE;
+    }
+    if (photos.length < MIN_PROPERTY_PHOTOS) {
+      newErrors.photos = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (kamu baru memilih ${photos.length}).`;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -237,11 +247,12 @@ export default function AddPropertyPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: form.title,
-          description: form.description,
+          title: form.title.trim(),
+          description: form.description.trim(),
           price: priceNum,
           listingType: form.listingType,
           category: form.category,
+          genderTarget: form.category === 'KOSAN' ? genderTarget : null,
           address: form.address,
           location: {
             lat: form.locationLat,
@@ -261,8 +272,8 @@ export default function AddPropertyPage() {
       }
 
       router.push('/owner/dashboard');
-    } catch (err: any) {
-      setSubmitError(err.message ?? 'Terjadi kesalahan. Coba lagi.');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Terjadi kesalahan. Coba lagi.');
     } finally {
       setIsSubmitting(false);
     }
@@ -352,6 +363,31 @@ export default function AddPropertyPage() {
               </div>
               {errors.category && <p className={styles.errorText}>{errors.category}</p>}
             </div>
+
+            {/* Tipe Kos (Gender) - Wajib jika Kategori KOSAN dipilih */}
+            {form.category === 'KOSAN' && (
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>
+                  Tipe Kos (Target Penghuni) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <div className={styles.listingTypeGroup}>
+                  {KOSAN_GENDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setGenderTarget(opt.value);
+                        setErrors((prev) => ({ ...prev, genderTarget: undefined }));
+                      }}
+                      className={`${styles.listingTypeBtn} ${genderTarget === opt.value ? styles.listingTypeBtnActive : ''}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {errors.genderTarget && <p className={styles.errorText}>{errors.genderTarget}</p>}
+              </div>
+            )}
 
             {/* Tipe Listing */}
             <div className={styles.fieldGroup}>
@@ -514,7 +550,7 @@ export default function AddPropertyPage() {
                     <path d="m21 15-5-5L5 21" />
                   </svg>
                   <p className={styles.uploadText}>Upload Foto Properti</p>
-                  <p className={styles.uploadHint}>Klik atau drag & drop</p>
+                  <p className={styles.uploadHint}>Klik atau drag & drop (minimal {MIN_PROPERTY_PHOTOS} foto)</p>
                 </div>
               ) : (
                 <div className={styles.photoGrid}>
@@ -545,8 +581,9 @@ export default function AddPropertyPage() {
               onChange={handlePhotoChange}
             />
             <p className={styles.uploadCount}>
-              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Belum ada foto'}
+              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Belum ada foto'} (minimal {MIN_PROPERTY_PHOTOS})
             </p>
+            {errors.photos && <p className={styles.errorText}>{errors.photos}</p>}
           </div>
         </div>
 

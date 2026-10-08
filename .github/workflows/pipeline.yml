@@ -2,9 +2,9 @@ name: Pipeline (CI → CS → CD)
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 20
           cache: 'npm'
 
       - name: Install dependencies
@@ -58,14 +58,22 @@ jobs:
       - name: Run Linter (ESLint)
         run: npm run lint
 
+      - name: Run Unit Tests (Vitest)
+        run: npm test
+
   # ============================================================
-  # 2. Tahap CD — Preview Deployment (Pull Request)
+  # 2. Tahap CD — Preview Deployment (Pull Request ke main)
   # ============================================================
   deploy-preview:
     name: Deploy Preview
     needs: integration-and-security
-    if: github.event_name == 'pull_request'
+    # PR ke dev cukup dicek CI, preview hanya untuk PR ke main
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
+    # Token bawaan repo hanya read; job ini perlu menulis komentar link preview di PR
+    permissions:
+      contents: read
+      pull-requests: write
     environment:
       name: preview
       url: ${{ steps.deploy.outputs.preview-url }}
@@ -117,7 +125,8 @@ jobs:
   deploy-production:
     name: Deploy Production
     needs: integration-and-security
-    if: github.event_name == 'push'
+    # Push ke dev juga memicu workflow, jadi production wajib dikunci ke main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: production

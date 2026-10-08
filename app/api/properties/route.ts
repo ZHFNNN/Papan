@@ -1,29 +1,10 @@
-import { KycStatus, Prisma } from '@prisma/client';
-import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/require-user';
+import { normalizeCategory } from '@/lib/property-input';
+import { getCachedPropertyList, setCachedPropertyList } from '@/lib/property-list-cache';
 
-const createPropertySchema = z.object({
-  title: z.string().min(3),
-  description: z.string().optional(),
-  price: z.number().positive(),
-  listingType: z.enum(['SELL', 'RENT'])
-});
-
-type PropertyCategory = 'RUMAH' | 'APARTEMEN' | 'KOSAN';
-
-function normalizeCategory(value: string | null): PropertyCategory | null {
-  if (!value) return null;
-
-  const normalized = value.trim().toUpperCase();
-  if (normalized === 'RUMAH' || normalized === 'APARTEMEN' || normalized === 'KOSAN') {
-    return normalized;
-  }
-
-  return null;
-}
-
-function normalizeListingType(value: string | null): string[] | null {
+// Untuk filter: cocokkan nilai lama (SELL/RENT/KOSAN) maupun baru (JUAL/SEWA) di database
+function normalizeListingTypeFilter(value: string | null): string[] | null {
   if (!value) return null;
 
   const normalized = value.trim().toUpperCase();
@@ -42,7 +23,7 @@ function normalizeListingType(value: string | null): string[] | null {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const categoryFilter = normalizeCategory(url.searchParams.get('category'));
-  const listingTypeFilter = normalizeListingType(url.searchParams.get('listingType'));
+  const listingTypeFilter = normalizeListingTypeFilter(url.searchParams.get('listingType'));
   const searchQuery = url.searchParams.get('q')?.trim();
   const promoOnly = url.searchParams.get('promo') === '1' || url.searchParams.get('promo') === 'true';
 
@@ -50,6 +31,12 @@ export async function GET(request: Request) {
   const take = Number.isFinite(takeRaw)
     ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200)
     : 120;
+
+  const cacheKey = JSON.stringify([categoryFilter, listingTypeFilter, searchQuery ?? '', promoOnly, take]);
+  const cached = getCachedPropertyList(cacheKey);
+  if (cached) {
+    return Response.json(cached);
+  }
 
   const now = new Date();
   const conditions: Prisma.PropertyWhereInput[] = [];
@@ -140,48 +127,38 @@ export async function GET(request: Request) {
     },
   } satisfies Prisma.PropertyInclude;
 
-  const boosted = await prisma.property.findMany({
-    where: {
-      ...baseWhere,
-      boosts: {
-        some: {
-          endsAt: {
-            gt: now,
-          },
-        },
-      },
-    },
-    include: includeConfig,
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take,
-  });
+  // Boost aktif = sudah mulai dan belum berakhir, sama dengan `isBoosted` di bawah.
+  // Boost yang dijadwalkan (startsAt di masa depan) belum dihitung.
+  const activeBoostWhere = { startsAt: { lte: now }, endsAt: { gt: now } } satisfies Prisma.PropertyBoostWhereInput;
 
-  const remaining = Math.max(take - boosted.length, 0);
-  const nonBoosted = remaining
-    ? await prisma.property.findMany({
-        where: {
-          ...baseWhere,
-          boosts: {
-            none: {
-              endsAt: {
-                gt: now,
-              },
-            },
-          },
-        },
-        include: includeConfig,
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: remaining,
-      })
-    : [];
+  // Dua query dijalankan paralel (bukan berurutan) supaya respons lebih cepat.
+  // Properti boosted selalu di depan, sisanya diisi properti biasa sampai `take`.
+  const [boosted, nonBoostedCandidates] = await Promise.all([
+    prisma.property.findMany({
+      where: {
+        ...baseWhere,
+        boosts: { some: activeBoostWhere },
+      },
+      include: includeConfig,
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+    prisma.property.findMany({
+      where: {
+        ...baseWhere,
+        boosts: { none: activeBoostWhere },
+      },
+      include: includeConfig,
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+  ]);
+
+  const nonBoosted = nonBoostedCandidates.slice(0, Math.max(take - boosted.length, 0));
 
   const data = [...boosted, ...nonBoosted].map((property) => {
-    const activeBoost = property.boosts[0] ?? null;
     const { boosts, facilities, discountActiveUntil, ...plainProperty } = property;
+    const activeBoost = boosts[0] ?? null;
 
     const isDiscountActive =
       typeof property.discountPercentage === 'number' &&
@@ -213,53 +190,11 @@ export async function GET(request: Request) {
     };
   });
 
-  return Response.json({
+  const body = {
     message: 'Daftar properti berhasil diambil.',
     data,
-  });
-}
+  };
+  setCachedPropertyList(cacheKey, body);
 
-export async function POST(request: Request) {
-  const auth = await requireAuth();
-  if ('error' in auth) {
-    return auth.error;
-  }
-
-  const userId = auth.session.user.id;
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      kycStatus: true
-    }
-  });
-
-  if (!user || user.kycStatus !== KycStatus.APPROVED) {
-    return Response.json(
-      { message: 'User harus lolos verifikasi KTP untuk membuat listing' },
-      { status: 403 }
-    );
-  }
-
-  const body = await request.json();
-  const parsed = createPropertySchema.safeParse(body);
-
-  if (!parsed.success) {
-    return Response.json(
-      { message: 'Payload tidak valid', errors: parsed.error.flatten() },
-      { status: 400 }
-    );
-  }
-
-  const property = await prisma.property.create({
-    data: {
-      ownerId: userId,
-      title: parsed.data.title,
-      description: parsed.data.description,
-      price: parsed.data.price,
-      listingType: parsed.data.listingType
-    }
-  });
-
-  return Response.json({ message: 'Listing berhasil dibuat', data: property }, { status: 201 });
+  return Response.json(body);
 }

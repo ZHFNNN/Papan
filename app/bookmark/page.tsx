@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 // Dummy data tidak lagi digunakan, sekarang menggunakan API
 type BookmarkedProperty = {
@@ -58,9 +59,10 @@ function BookmarkCard({
       <div className={styles.cardThumb}>
         {item.coverImageUrl && !imgError ? (
           <img
-            src={item.coverImageUrl}
+            src={optimizeImage(item.coverImageUrl, IMAGE_WIDTH.thumb * 2)}
             alt={item.title}
             className={styles.cardImg}
+            loading="lazy" decoding="async"
             onError={() => setImgError(true)}
           />
         ) : (

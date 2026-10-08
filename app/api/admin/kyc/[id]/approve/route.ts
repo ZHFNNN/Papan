@@ -1,4 +1,5 @@
 import { KycStatus } from "@prisma/client";
+import { invalidateRoleCache } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/require-user";
 
@@ -38,6 +39,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     return kyc;
   });
+  invalidateRoleCache(submission.userId);
 
   return Response.json({ message: "KYC disetujui", data: updated });
 }

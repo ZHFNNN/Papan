@@ -1,8 +1,12 @@
 import { hash } from "bcryptjs";
 import { z } from "zod";
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/mailer";
+import {
+  VERIFICATION_TOKEN_TTL_MS,
+  buildVerifyUrl,
+  createVerificationToken,
+} from "@/lib/email-verification";
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -38,7 +42,11 @@ export async function POST(request: Request) {
     ]);
 
     if (existingEmail) {
-      return Response.json({ message: "Email sudah terdaftar" }, { status: 409 });
+      const message =
+        existingEmail.passwordHash && !existingEmail.emailVerified
+          ? "Email sudah terdaftar tapi belum diverifikasi. Kirim ulang email verifikasi dari halaman login."
+          : "Email sudah terdaftar";
+      return Response.json({ message }, { status: 409 });
     }
 
     if (existingUsername) {
@@ -50,8 +58,8 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await hash(password, 12);
-    const verificationToken = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const verificationToken = createVerificationToken();
+    const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
 
     await prisma.$transaction([
       prisma.user.create({
@@ -74,15 +82,12 @@ export async function POST(request: Request) {
     ]);
 
     const baseUrl = process.env.NEXTAUTH_URL || new URL(request.url).origin;
-    const verifyUrl = new URL("/api/auth/verify-email", baseUrl);
-    verifyUrl.searchParams.set("email", normalizedEmail);
-    verifyUrl.searchParams.set("token", verificationToken);
 
     try {
       await sendVerificationEmail({
         to: normalizedEmail,
         username,
-        verifyUrl: verifyUrl.toString(),
+        verifyUrl: buildVerifyUrl(baseUrl, normalizedEmail, verificationToken),
       });
     } catch (mailError) {
       await prisma.verificationToken.deleteMany({

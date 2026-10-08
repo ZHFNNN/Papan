@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { getBoostEndsAt } from '@/lib/booster';
-import { getMidtransSignatureKey } from '@/lib/midtrans';
+import {
+  canTransitionPaymentStatus,
+  getMidtransSignatureKey,
+  mapMidtransStatus,
+  parseMidtransTime,
+} from '@/lib/midtrans';
 
 type MidtransWebhookBody = {
   order_id?: string;
@@ -15,26 +21,6 @@ type MidtransWebhookBody = {
   expiry_time?: string;
   signature_key?: string;
 };
-
-function getPaymentStatus(transactionStatus?: string, fraudStatus?: string) {
-  switch (transactionStatus) {
-    case 'settlement':
-      return 'PAID' as const;
-    case 'capture':
-      return fraudStatus === 'challenge' ? ('PROCESSING' as const) : ('PAID' as const);
-    case 'pending':
-      return 'PENDING' as const;
-    case 'expire':
-      return 'EXPIRED' as const;
-    case 'cancel':
-      return 'CANCELLED' as const;
-    case 'deny':
-    case 'failure':
-      return 'FAILED' as const;
-    default:
-      return 'PROCESSING' as const;
-  }
-}
 
 export async function POST(req: Request) {
   const payload = (await req.json().catch(() => null)) as MidtransWebhookBody | null;
@@ -60,7 +46,6 @@ export async function POST(req: Request) {
     where: { orderId: payload.order_id },
     include: {
       items: true,
-      boosts: true,
     },
   });
 
@@ -73,66 +58,73 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Gross amount tidak cocok.' }, { status: 400 });
   }
 
-  const nextStatus = getPaymentStatus(payload.transaction_status, payload.fraud_status);
-  const settledAt = payload.settlement_time ? new Date(payload.settlement_time) : new Date();
+  const nextStatus = mapMidtransStatus(payload.transaction_status, payload.fraud_status);
+
+  // Notifikasi terlambat / berulang (misalnya "expire" setelah lunas) diabaikan.
+  // Tetap balas 200 supaya Midtrans berhenti mengirim ulang.
+  if (!canTransitionPaymentStatus(payment.status, nextStatus)) {
+    console.info(
+      `[midtrans-webhook] ${payment.orderId}: abaikan ${payment.status} -> ${nextStatus} (${payload.transaction_status})`,
+    );
+    return NextResponse.json({ success: true, ignored: true });
+  }
+
+  const notificationData = {
+    paymentMethod: payload.payment_type ?? payment.paymentMethod,
+    paymentType: payload.payment_type ?? payment.paymentType,
+    providerTransactionId: payload.transaction_id ?? payment.providerTransactionId,
+    rawResponse: payload,
+  };
 
   if (nextStatus !== 'PAID') {
     await prisma.boostPayment.update({
       where: { id: payment.id },
       data: {
+        ...notificationData,
         status: nextStatus,
-        paymentMethod: payload.payment_type ?? payment.paymentMethod,
-        paymentType: payload.payment_type ?? payment.paymentType,
-        providerTransactionId: payload.transaction_id ?? payment.providerTransactionId,
-        expiredAt: payload.expiry_time ? new Date(payload.expiry_time) : payment.expiredAt,
-        rawResponse: payload,
+        expiredAt: parseMidtransTime(payload.expiry_time) ?? payment.expiredAt,
       },
     });
 
     return NextResponse.json({ success: true });
   }
 
-  if (payment.boosts.length > 0) {
-    await prisma.boostPayment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'PAID',
-        paymentMethod: payload.payment_type ?? payment.paymentMethod,
-        paymentType: payload.payment_type ?? payment.paymentType,
-        providerTransactionId: payload.transaction_id ?? payment.providerTransactionId,
-        settledAt,
-        rawResponse: payload,
+  const settledAt = parseMidtransTime(payload.settlement_time) ?? new Date();
+
+  const boostsCreated = await prisma.$transaction(async (tx) => {
+    // Klaim status PAID secara atomik. Kalau ada notifikasi lain yang sudah
+    // memproses pembayaran ini (count 0), booster tidak dibuat dua kali.
+    const claimed = await tx.boostPayment.updateMany({
+      where: { id: payment.id, status: { not: 'PAID' } },
+      data: { ...notificationData, status: 'PAID', settledAt },
+    });
+
+    if (claimed.count === 0) return false;
+
+    const propertyIds = [...new Set(payment.items.map((item) => item.propertyId))];
+    const properties = await tx.property.findMany({
+      where: { id: { in: propertyIds } },
+      select: {
+        id: true,
+        boosts: {
+          where: {
+            startsAt: {
+              lte: settledAt,
+            },
+            endsAt: {
+              gt: settledAt,
+            },
+          },
+          orderBy: {
+            endsAt: 'desc',
+          },
+          take: 1,
+        },
       },
     });
 
-    return NextResponse.json({ success: true });
-  }
+    const propertyById = new Map(properties.map((property) => [property.id, property]));
 
-  const propertyIds = [...new Set(payment.items.map((item) => item.propertyId))];
-  const properties = await prisma.property.findMany({
-    where: { id: { in: propertyIds } },
-    select: {
-      id: true,
-      boosts: {
-        where: {
-          startsAt: {
-            lte: settledAt,
-          },
-          endsAt: {
-            gt: settledAt,
-          },
-        },
-        orderBy: {
-          endsAt: 'desc',
-        },
-        take: 1,
-      },
-    },
-  });
-
-  const propertyById = new Map(properties.map((property) => [property.id, property]));
-
-  await prisma.$transaction(async (tx) => {
     for (const item of payment.items) {
       const property = propertyById.get(item.propertyId);
       const activeBoost = property?.boosts[0] ?? null;
@@ -154,18 +146,13 @@ export async function POST(req: Request) {
       });
     }
 
-    await tx.boostPayment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'PAID',
-        paymentMethod: payload.payment_type ?? payment.paymentMethod,
-        paymentType: payload.payment_type ?? payment.paymentType,
-        providerTransactionId: payload.transaction_id ?? payment.providerTransactionId,
-        settledAt,
-        rawResponse: payload,
-      },
-    });
+    return true;
   });
+
+  if (boostsCreated) {
+    // Boost baru aktif -> urutan daftar properti publik berubah
+    invalidatePropertyListCache();
+  }
 
   return NextResponse.json({ success: true });
 }

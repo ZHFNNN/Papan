@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -9,6 +9,8 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
 import { formatPrice } from '@/lib/format-price';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
+import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from '@/lib/review-photos';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -106,7 +108,7 @@ type PropertyDetailClientProps = { propertyId: string };
 
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1494526585095-c41746248156?w=1200&q=80';
-const MAX_PHOTO_UPLOAD = 5;
+const MAX_PHOTO_UPLOAD = MAX_REVIEW_PHOTOS;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -294,7 +296,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
   }, [propertyId]);
 
   // ── Fetch reviews ───────────────────────────────────────────
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     setReviewsLoading(true);
     try {
       const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/reviews`);
@@ -303,11 +305,11 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
     } catch { /* silent */ } finally {
       setReviewsLoading(false);
     }
-  };
+  }, [propertyId]);
 
   useEffect(() => {
     if (propertyId) fetchReviews();
-  }, [propertyId]);
+  }, [propertyId, fetchReviews]);
 
   useEffect(() => {
     let cancelled = false;
@@ -373,7 +375,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
 
   // ── Review photo pick ────────────────────────────────────────
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
+    const picked = Array.from(e.target.files ?? []);
+    const files = picked.filter((f) => f.type.startsWith('image/') && f.size <= MAX_REVIEW_PHOTO_BYTES);
+    if (files.length < picked.length) toast.error('Foto harus berupa gambar, maksimal 5 MB per foto.');
     const remaining = MAX_PHOTO_UPLOAD - formPhotos.length;
     const added = files.slice(0, remaining);
     setFormPhotos((prev) => [...prev, ...added]);
@@ -395,17 +399,19 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
     setFormSubmitting(true); setFormError(null);
 
     try {
-      // Konversi foto ke base64 langsung di client — tidak perlu /api/upload
-      const photoDataURIs: string[] = await Promise.all(
-        formPhotos.map(
-          (file) =>
-            new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => reject(new Error(`Gagal membaca file ${file.name}`));
-              reader.readAsDataURL(file);
-            })
-        )
+      // Upload foto ke Cloudinary satu per satu, ulasan cukup menyimpan URL-nya
+      const photoUrls: string[] = await Promise.all(
+        formPhotos.map(async (file) => {
+          const fd = new FormData();
+          fd.append('file', file);
+          const uploadRes = await fetch('/api/uploads/review', { method: 'POST', body: fd, credentials: 'include' });
+          const uploadJson = await uploadRes.json().catch(() => ({}));
+          if (uploadRes.status === 401) throw new Error('Silakan login terlebih dahulu.');
+          if (!uploadRes.ok || !uploadJson.data?.url) {
+            throw new Error(uploadJson.message ?? `Gagal mengunggah foto ${file.name}`);
+          }
+          return uploadJson.data.url as string;
+        })
       );
 
       const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/reviews`, {
@@ -415,7 +421,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
         body: JSON.stringify({
           rating: formRating,
           comment: formComment.trim() || undefined,
-          photos: photoDataURIs,
+          photos: photoUrls,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -553,7 +559,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
       {lightboxSrc && (
         <div className={styles.lightboxOverlay} onClick={() => setLightboxSrc(null)}>
           <button className={styles.lightboxClose} onClick={() => setLightboxSrc(null)}>✕</button>
-          <img src={lightboxSrc} alt="Review foto" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
+          <img src={optimizeImage(lightboxSrc, IMAGE_WIDTH.detail)} alt="Review foto" className={styles.lightboxImg} onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
@@ -577,7 +583,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
           <div className={styles.topSection}>
             <div className={styles.galleryWrapper}>
               <div className={styles.mainImage}>
-                <img src={activeImageSrc} alt={prop.title} />
+                <img src={optimizeImage(activeImageSrc, IMAGE_WIDTH.detail)} alt={prop.title} decoding="async" fetchPriority="high" />
               </div>
               <div className={styles.thumbnailColumn}>
                 {prop.images.map((src, i) => (
@@ -586,7 +592,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                     className={`${styles.thumbnail} ${activeImage === i ? styles.thumbnailActive : ''}`}
                     onClick={() => setActiveImage(i)}
                   >
-                    <img src={src} alt={`Foto ${i + 1}`} />
+                    <img src={optimizeImage(src, IMAGE_WIDTH.thumb * 2)} alt={`Foto ${i + 1}`} loading="lazy" decoding="async" />
                   </div>
                 ))}
               </div>
@@ -631,8 +637,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                 <div className={styles.agentAvatar}>
                   {prop.ownerImage ? (
                     <img
-                      src={prop.ownerImage}
+                      src={optimizeImage(prop.ownerImage, IMAGE_WIDTH.thumb)}
                       alt={prop.ownerName}
+                      loading="lazy" decoding="async"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                     />
                   ) : (
@@ -797,7 +804,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                   <div className={styles.reviewCardHeader}>
                     <div className={styles.reviewAvatar}>
                       {review.user.image
-                        ? <img src={review.user.image} alt={review.user.name ?? ''} />
+                        ? <img src={optimizeImage(review.user.image, IMAGE_WIDTH.thumb)} alt={review.user.name ?? ''} loading="lazy" decoding="async" />
                         : <span>{(review.user.name ?? review.user.username ?? '?').charAt(0).toUpperCase()}</span>
                       }
                     </div>
@@ -834,7 +841,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                           className={styles.reviewPhotoThumb}
                           onClick={() => setLightboxSrc(photo.data)}
                         >
-                          <img src={photo.data} alt="Foto ulasan" />
+                          <img src={optimizeImage(photo.data, IMAGE_WIDTH.thumb)} alt="Foto ulasan" loading="lazy" decoding="async" />
                         </div>
                       ))}
                     </div>

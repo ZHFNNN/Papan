@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/prisma';
+import { normalizeCategory } from '@/lib/property-input';
 import { requireAdmin } from '@/lib/require-user';
-import { PropertyCategory, KycStatus } from '@prisma/client';
+import { KycStatus, type Prisma } from '@prisma/client';
 
 export async function GET(request: Request) {
   const admin = await requireAdmin();
   if ('error' in admin) return admin.error;
 
   const { searchParams } = new URL(request.url);
-  const category = searchParams.get('category') as PropertyCategory | null;
+  // Kategori tidak dikenal diabaikan (sebelumnya membuat query Prisma error 500)
+  const category = normalizeCategory(searchParams.get('category'));
   const city = searchParams.get('city');
 
   // Ambil semua kota yang ada (untuk datalist suggestion)
@@ -20,7 +22,7 @@ export async function GET(request: Request) {
 
   // Ambil owner yang sudah KYC APPROVED.
   // Jika ada filter kategori atau kota, tetap pakai properti untuk menyaring.
-  const ownerWhere: any = {
+  const ownerWhere: Prisma.UserWhereInput = {
     kycStatus: KycStatus.APPROVED,
   };
 

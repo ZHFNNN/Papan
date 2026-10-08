@@ -1,15 +1,18 @@
 'use client';
 
-// components/KategoriPage.tsx
-// Komponen reusable untuk semua halaman kategori (Apartemen, Rumah, Kosan)
-// Usage: tinggal pass props category, aktif, bgImage, overlays
+// app/kategori/[kategori]/KategoriPage.tsx
+// Komponen untuk semua halaman kategori (Apartemen, Rumah, Kosan),
+// dirender oleh app/kategori/[kategori]/page.tsx sesuai KATEGORI_CONFIG.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { formatPrice } from '@/lib/format-price';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
+import CardImageCarousel from '@/components/CardImageCarousel';
 import { type ApiProperty, type PropertyCardData, mapApiPropertyToCard } from '@/types/property';
 import styles from './Kategoripage.module.css';
 
@@ -72,10 +75,6 @@ function parseRawPrice(price: string | number): number {
   return parseInt(String(price).replace(/[^0-9]/g, ''), 10) || 0;
 }
 
-function getInitials(name: string) {
-  return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-}
-
 // ─── Sub-components ───────────────────────────────────────────
 
 // Price range slider
@@ -123,15 +122,17 @@ function PriceRangeSlider({
 }
 
 // Single property card — grid mode
-function GridCard({ prop }: { prop: PropertyCardData }) {
-  const [imgIdx, setImgIdx] = useState(0);
-  const [hovered, setHovered] = useState(false);
+const gridCarouselClassNames = {
+  wrapper: styles.gcImgWrap,
+  track: styles.gcImgTrack,
+  image: styles.gcImg,
+  dots: styles.gcDots,
+  dot: styles.gcDot,
+  dotActive: styles.gcDotActive,
+};
 
-  useEffect(() => {
-    if (!hovered || prop.images.length <= 1) return;
-    const id = setInterval(() => setImgIdx((p) => (p + 1) % prop.images.length), 1400);
-    return () => clearInterval(id);
-  }, [hovered, prop.images.length]);
+function GridCard({ prop }: { prop: PropertyCardData }) {
+  const [hovered, setHovered] = useState(false);
 
   return (
     <Link href={`/propertyDetail/${prop.id}`} className={styles.gridCardLink}>
@@ -140,29 +141,16 @@ function GridCard({ prop }: { prop: PropertyCardData }) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div className={styles.gcImgWrap}>
-          <div
-            className={styles.gcImgTrack}
-            style={{ transform: `translateX(-${imgIdx * 100}%)` }}
-          >
-            {prop.images.map((src, i) => (
-              <img key={i} src={src} alt={prop.title} className={styles.gcImg} />
-            ))}
-          </div>
-          {prop.images.length > 1 && (
-            <div className={styles.gcDots}>
-              {prop.images.map((_, i) => (
-                <button
-                  key={i}
-                  className={`${styles.gcDot} ${i === imgIdx ? styles.gcDotActive : ''}`}
-                  onClick={(e) => { e.preventDefault(); setImgIdx(i); }}
-                  aria-label={`Foto ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
+        <CardImageCarousel
+          images={prop.images}
+          alt={prop.title}
+          active={hovered}
+          intervalMs={1400}
+          hideSingleDot
+          classNames={gridCarouselClassNames}
+        >
           <span className={styles.gcListingBadge}>{prop.listingType === 'RENT' ? 'Sewa' : 'Jual'}</span>
-        </div>
+        </CardImageCarousel>
 
         <div className={styles.gcBody}>
           <p className={styles.gcTitle}>{prop.title}</p>
@@ -196,7 +184,7 @@ function ListCard({ prop }: { prop: PropertyCardData }) {
     <Link href={`/propertyDetail/${prop.id}`} className={styles.listCardLink}>
       <article className={styles.listCard}>
         <div className={styles.lcImgWrap}>
-          <img src={prop.images[0]} alt={prop.title} className={styles.lcImg} />
+          <img src={optimizeImage(prop.images[0], IMAGE_WIDTH.card)} alt={prop.title} className={styles.lcImg} loading="lazy" decoding="async" />
           <span className={styles.lcBadge}>{prop.listingType === 'RENT' ? 'Sewa' : 'Jual'}</span>
         </div>
         <div className={styles.lcBody}>
@@ -232,23 +220,6 @@ function ListCard({ prop }: { prop: PropertyCardData }) {
   );
 }
 
-// Map pin marker
-function MapPin({ prop, active, onClick }: { prop: PropertyCardData; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      className={`${styles.mapPin} ${active ? styles.mapPinActive : ''}`}
-      style={{
-        // Kalau lat/lng ada, ini bisa diposisikan dengan CSS absolute
-        // Untuk sekarang kita tampilkan sebagai list di samping map
-      }}
-      onClick={onClick}
-      aria-label={prop.title}
-    >
-      <span className={styles.mapPinPrice}>{formatPrice(prop.price)}</span>
-    </button>
-  );
-}
-
 // Skeleton card
 function SkeletonGridCard() {
   return (
@@ -272,6 +243,8 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
   // Hero state
   const [charaX, setCharaX] = useState(50);
   const [hoveredSpot, setHoveredSpot] = useState<string | null>(null);
+  // Overlay bangunan (~600KB/gambar) baru diunduh setelah mouse masuk ke hero
+  const [overlaysArmed, setOverlaysArmed] = useState(false);
 
   // When navigating between kategori pages, this client component can be re-used.
   // Clear any active overlay so we don't get a stuck/blank-looking hero until the next mouse event.
@@ -416,26 +389,32 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
         key={`${aktif}-${bgImage}`}
         className={styles.hero}
         ref={heroRef}
+        onMouseEnter={() => setOverlaysArmed(true)}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredSpot(null)}
       >
-        <img
+        <Image
           src={bgImage}
           alt="Hero"
           className={styles.heroBg}
+          fill
+          sizes="100vw"
           loading="eager"
-          decoding="async"
           fetchPriority="high"
         />
 
-        {hotspots.map((spot) => (
-          <img
-            key={spot.id}
-            src={spot.img}
-            alt={spot.id}
-            className={`${styles.heroBg} ${styles.heroBgOverlay} ${hoveredSpot === spot.id ? styles.heroBgOverlayVisible : ''}`}
-          />
-        ))}
+        {overlaysArmed &&
+          hotspots.map((spot) => (
+            <Image
+              key={spot.id}
+              src={spot.img}
+              alt=""
+              aria-hidden
+              fill
+              sizes="100vw"
+              className={`${styles.heroBg} ${styles.heroBgOverlay} ${hoveredSpot === spot.id ? styles.heroBgOverlayVisible : ''}`}
+            />
+          ))}
 
         {hotspots.map((spot) => (
           <div
@@ -753,7 +732,7 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
                         onMouseLeave={() => setActiveMapPin(null)}
                       >
                         <div className={styles.mpImgWrap}>
-                          <img src={p.images[0]} alt={p.title} className={styles.mpImg} />
+                          <img src={optimizeImage(p.images[0], IMAGE_WIDTH.thumb)} alt={p.title} className={styles.mpImg} loading="lazy" decoding="async" />
                           <span className={styles.mpBadge}>{p.listingType === 'RENT' ? 'Sewa' : 'Jual'}</span>
                         </div>
                         <div className={styles.mpInfo}>

@@ -1,10 +1,9 @@
 // app/api/kyc/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { authOptions, invalidateRoleCache } from '@/lib/auth';
+import { isAcceptableKycImageRef } from '@/lib/kyc-image';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,6 +45,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Semua field wajib diisi.' }, { status: 400 });
     }
 
+    // Foto harus hasil upload user ini sendiri (atau foto pengajuan sebelumnya),
+    // bukan URL sembarang atau foto milik user lain.
+    const current = user.kycSubmission;
+    if (
+      !isAcceptableKycImageRef(ktpImageUrl, 'ktp', user.id, current?.ktpImageUrl) ||
+      !isAcceptableKycImageRef(selfieImageUrl, 'selfie', user.id, current?.selfieImageUrl)
+    ) {
+      return NextResponse.json(
+        { message: 'Foto KTP atau selfie tidak valid. Silakan unggah ulang.' },
+        { status: 400 }
+      );
+    }
+
     // Upsert KycSubmission (buat baru atau update jika REJECTED)
     await prisma.$transaction([
       prisma.kycSubmission.upsert({
@@ -74,6 +86,7 @@ export async function POST(req: NextRequest) {
         data: { kycStatus: 'PENDING' },
       }),
     ]);
+    invalidateRoleCache(user.id);
 
     return NextResponse.json({ message: 'Pengajuan berhasil dikirim.' });
   } catch (error) {

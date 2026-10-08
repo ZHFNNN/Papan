@@ -4,6 +4,13 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from '@/app/owner/addProperty/page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
+import {
+  KOSAN_GENDER_OPTIONS,
+  KOSAN_GENDER_REQUIRED_MESSAGE,
+  normalizeGenderTarget,
+  type KosanGenderTarget,
+} from '@/lib/property-input';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -27,7 +34,7 @@ type FormData = {
   discountActiveUntil: string;      // YYYY-MM-DD dari <input type="date"> atau kosong
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
+type FormErrors = Partial<Record<keyof FormData | 'genderTarget' | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -47,6 +54,7 @@ type PropertyResponse = {
   description?: string | null;
   listingType?: string;
   category?: string;
+  genderTarget?: string | null;
   imageUrls?: string[];
   facilities?: Array<{ facility?: { code?: string; name?: string } }>;
   discountPercentage?: number | null;
@@ -113,6 +121,7 @@ export default function EditPropertyPage() {
     discountPercentage: '', discountActiveUntil: '',
   });
 
+  const [genderTarget, setGenderTarget]               = useState<KosanGenderTarget | ''>('');
   const [errors, setErrors]                           = useState<FormErrors>({});
   const [isLoading, setIsLoading]                     = useState(true);
   const [isSubmitting, setIsSubmitting]               = useState(false);
@@ -195,9 +204,7 @@ export default function EditPropertyPage() {
         const presets: FacilityOption[] = Array.isArray(json2.data) ? json2.data : [];
         const presetCodes = new Set(presets.map((p) => p.code));
 
-        // Custom = code yang tidak ada di preset
-        const loadedCustomCodes = allFacilityCodes.filter((c) => !presetCodes.has(c));
-        // Nama custom diambil dari data facilities
+        // Fasilitas custom = code yang tidak ada di preset, namanya diambil dari data facilities
         const loadedCustomNames: string[] = [];
         if (Array.isArray(data.facilities)) {
           for (const item of data.facilities) {
@@ -234,9 +241,10 @@ export default function EditPropertyPage() {
             ? data.discountActiveUntil.slice(0, 10)  // ISO → YYYY-MM-DD untuk <input type="date">
             : '',
         });
+        setGenderTarget(normalizeGenderTarget(data.genderTarget) ?? '');
         setExistingImageUrls(Array.isArray(data.imageUrls) ? data.imageUrls : []);
-      } catch (err: any) {
-        if (!cancelled) setLoadError(err.message ?? 'Gagal memuat properti.');
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Gagal memuat properti.');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -304,6 +312,7 @@ export default function EditPropertyPage() {
     if (!valid.length) return;
     setNewPhotos((prev)        => [...prev, ...valid]);
     setNewPhotoPreviews((prev) => [...prev, ...valid.map((f) => URL.createObjectURL(f))]);
+    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => appendPhotoFiles(Array.from(e.target.files ?? []));
@@ -331,8 +340,10 @@ export default function EditPropertyPage() {
     if (!form.description.trim()) next.description = 'Deskripsi wajib diisi.';
     if (!form.listingType)        next.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category)           next.category    = 'Kategori properti wajib dipilih.';
-    if (existingImageUrls.length + newPhotos.length === 0)
-                                  next.facilities  = 'Minimal harus ada 1 foto properti.';
+    if (form.category === 'KOSAN' && !genderTarget)
+                                  next.genderTarget = KOSAN_GENDER_REQUIRED_MESSAGE;
+    if (existingImageUrls.length + newPhotos.length < MIN_PROPERTY_PHOTOS)
+                                  next.photos      = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (saat ini ${existingImageUrls.length + newPhotos.length}).`;
 
     // Validasi diskon — opsional
     const discRaw = form.discountPercentage.trim();
@@ -383,6 +394,7 @@ export default function EditPropertyPage() {
           price:       Number(form.price.replace(/[^0-9]/g, '')),
           listingType: listingTypeToApi(form.listingType),
           category:    form.category,
+          genderTarget: form.category === 'KOSAN' ? genderTarget : null,
           address:     form.address,
           location: {
             lat:           form.locationLat,
@@ -401,8 +413,8 @@ export default function EditPropertyPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan perubahan.');
       router.push('/owner/dashboard');
-    } catch (err: any) {
-      setSubmitError(err.message ?? 'Terjadi kesalahan. Coba lagi.');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Terjadi kesalahan. Coba lagi.');
     } finally {
       setIsSubmitting(false);
     }
@@ -473,6 +485,31 @@ export default function EditPropertyPage() {
             </div>
             {errors.category && <p className={styles.errorText}>{errors.category}</p>}
           </div>
+
+          {/* Tipe Kos (Gender) - Wajib jika Kategori KOSAN dipilih */}
+          {form.category === 'KOSAN' && (
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>
+                Tipe Kos (Target Penghuni) <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <div className={styles.listingTypeGroup}>
+                {KOSAN_GENDER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setGenderTarget(opt.value);
+                      setErrors((prev) => ({ ...prev, genderTarget: undefined }));
+                    }}
+                    className={`${styles.listingTypeBtn} ${genderTarget === opt.value ? styles.listingTypeBtnActive : ''}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {errors.genderTarget && <p className={styles.errorText}>{errors.genderTarget}</p>}
+            </div>
+          )}
 
           <div className={styles.fieldGroup}>
             <label className={styles.label}>Tipe Listing</label>
@@ -633,7 +670,7 @@ export default function EditPropertyPage() {
                   <path d="m21 15-5-5L5 21" />
                 </svg>
                 <p className={styles.uploadText}>Upload Foto Properti</p>
-                <p className={styles.uploadHint}>Klik atau drag & drop</p>
+                <p className={styles.uploadHint}>Klik atau drag & drop (minimal {MIN_PROPERTY_PHOTOS} foto)</p>
               </div>
             ) : (
               <div className={styles.photoGrid}>
@@ -657,8 +694,9 @@ export default function EditPropertyPage() {
           <p className={styles.uploadCount}>
             {existingImageUrls.length + newPhotos.length > 0
               ? `${existingImageUrls.length + newPhotos.length} foto dipilih`
-              : 'Belum ada foto'}
+              : 'Belum ada foto'} (minimal {MIN_PROPERTY_PHOTOS})
           </p>
+          {errors.photos && <p className={styles.errorText}>{errors.photos}</p>}
         </div>
       </div>
 

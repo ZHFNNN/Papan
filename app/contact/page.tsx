@@ -1,14 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
 
 export default function ContactPage() {
-  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [formSent, setFormSent] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });

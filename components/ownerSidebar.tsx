@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import styles from './ownerSidebar.module.css';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { useSidebarDrawer } from '@/components/useSidebarDrawer';
 import { signOut } from 'next-auth/react';
 
 const MENU_ITEMS = [
@@ -26,6 +27,8 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
   const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [highlightStyle, setHighlightStyle] = useState({ top: '0px', height: '0px', opacity: 0 });
   const [logoutOpen, setLogoutOpen] = useState(false);
+  // Di layar kecil sidebar jadi drawer yang menutupi konten
+  const { drawerOpen, closeDrawer, handleToggle } = useSidebarDrawer(onToggle);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   const activeHref = pathname === '/owner' ? '/owner/dashboard' : pathname;
@@ -67,10 +70,22 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
   return (
     <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
       {/* Sidebar panel */}
-      <div className={`${styles.sidebarWrapper} ${collapsed ? styles.collapsed : ''}`}>
+      {drawerOpen && <div className={styles.drawerBackdrop} onClick={closeDrawer} aria-hidden />}
+
+      <div
+        className={`${styles.sidebarWrapper} ${collapsed ? styles.collapsed : ''} ${drawerOpen ? styles.drawerOpen : ''}`}
+      >
         <div className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
             <h2 className={styles.sidebarTitle}>Pemilik Properti</h2>
+            <button
+              type="button"
+              className={styles.drawerClose}
+              onClick={closeDrawer}
+              aria-label="Tutup menu"
+            >
+              ✕
+            </button>
           </div>
 
           <div className={styles.menuList}>
@@ -90,6 +105,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
                   href={item.href}
                   ref={(el) => { linkRefs.current[item.href] = el; }}
                   className={`${styles.menuItem} ${isActive ? styles.menuItemActive : ''}`}
+                  onClick={closeDrawer}
                 >
                   {item.label}
                 </Link>
@@ -105,7 +121,10 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
               Kembali ke Mode Pencari
             </button>
             <button
-              onClick={openLogoutModal}
+              onClick={() => {
+                closeDrawer();
+                openLogoutModal();
+              }}
               className={styles.logoutButton}
             >
               <span className={styles.logoutText}>Log Out</span>
@@ -125,14 +144,18 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
         onConfirm={confirmLogout}
       />
 
-      {/* Toggle button — always visible */}
+      {/* Toggle: desktop = collapse sidebar, mobile = buka drawer menu */}
       <button
         className={`${styles.toggleButton} ${collapsed ? styles.rotated : ''}`}
-        onClick={onToggle}
+        onClick={handleToggle}
         title={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
         aria-label={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+        aria-expanded={drawerOpen}
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <span className={styles.toggleMenuLabel} aria-hidden>
+          ☰ Menu
+        </span>
+        <svg className={styles.toggleChevron} width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path
             d="M9 2L4 7L9 12"
             stroke="white"

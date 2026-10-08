@@ -1,13 +1,11 @@
 // app/api/profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth'; // sesuaikan path auth config kamu
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET /api/profile — ambil data user yang sedang login
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
