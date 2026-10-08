@@ -17,51 +17,45 @@ async function main() {
     return;
   }
 
-  console.log(`Ditemukan ${kosans.length} properti kosan. Memulai pembaruan variasi gender...`);
+  console.log(`Ditemukan ${kosans.length} properti kosan dummy. Merapikan judul dan menyematkan tag gender di deskripsi...`);
 
   const kosTypes = [
-    { prefix: "Kost Putri", note: "Khusus mahasiswi / karyawati putri." },
-    { prefix: "Kost Putra", note: "Khusus mahasiswa / pria." },
-    { prefix: "Kost Campur", note: "Bisa untuk putra maupun putri / pasutri." },
+    { tag: "[Tipe: Khusus Putri]", note: "Khusus mahasiswi / karyawati putri." },
+    { tag: "[Tipe: Khusus Putra]", note: "Khusus mahasiswa / pria." },
+    { tag: "[Tipe: Campur]", note: "Bisa untuk putra maupun putri / pasutri." },
   ];
 
   let updatedCount = 0;
 
   for (let i = 0; i < kosans.length; i++) {
     const kos = kosans[i];
-    const lowerTitle = kos.title.toLowerCase();
-
-    const alreadyLabeled =
-      lowerTitle.includes("putri") ||
-      lowerTitle.includes("putra") ||
-      lowerTitle.includes("campur");
-
-    if (alreadyLabeled) {
-      continue;
-    }
-
     const chosen = kosTypes[i % kosTypes.length];
-    const newTitle = kos.title.replace(/^Kosan\b/i, chosen.prefix).trim();
-    const finalTitle = newTitle.startsWith(chosen.prefix)
-      ? newTitle
-      : `${chosen.prefix} ${newTitle}`;
 
-    const newDescription = kos.description
-      ? `${chosen.note} ${kos.description}`
-      : chosen.note;
+    // Kembalikan judul ke format bersih aslinya ("Kosan di ...")
+    const cleanTitle = kos.title.replace(/^Kost\s+(Putri|Putra|Campur)\b/i, "Kosan").trim();
+
+    // Bersihkan deskripsi lama dari tag atau note ganda jika ada
+    let cleanDesc = (kos.description ?? "")
+      .replace(/^\[Tipe:[^\]]+\]\s*/i, "")
+      .replace(/^Khusus mahasiswi \/ karyawati putri\.\s*/i, "")
+      .replace(/^Khusus mahasiswa \/ pria\.\s*/i, "")
+      .replace(/^Bisa untuk putra maupun putri \/ pasutri\.\s*/i, "")
+      .trim();
+
+    const finalDescription = `${chosen.tag} ${chosen.note} ${cleanDesc}`.trim();
 
     await prisma.property.update({
       where: { id: kos.id },
       data: {
-        title: finalTitle,
-        description: newDescription,
+        title: cleanTitle,
+        description: finalDescription,
       },
     });
 
     updatedCount++;
   }
 
-  console.log(`Sukses! ${updatedCount} kosan berhasil diperbarui dengan variasi gender.`);
+  console.log(`Sukses! ${updatedCount} kosan dummy berhasil dirapikan (judul bersih & tag gender di deskripsi).`);
 }
 
 main()

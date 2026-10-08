@@ -239,19 +239,17 @@ export default function AddPropertyPage() {
       const priceNum = Number(form.price.replace(/[^0-9]/g, ''));
       const uploadedPhotoUrls = photos.length > 0 ? await uploadPhotosToCloudinary(photos) : [];
 
-      let finalTitle = form.title.trim();
+      let finalDescription = form.description.trim();
       if (form.category === 'KOSAN') {
-        const lowerTitle = finalTitle.toLowerCase();
-        const alreadyPrefixed =
-          lowerTitle.startsWith('kost putri') ||
-          lowerTitle.startsWith('kost putra') ||
-          lowerTitle.startsWith('kost campur') ||
-          lowerTitle.startsWith('kos putri') ||
-          lowerTitle.startsWith('kos putra') ||
-          lowerTitle.startsWith('kos campur');
+        const tag =
+          kosGender === 'Kost Putri'
+            ? '[Tipe: Khusus Putri]'
+            : kosGender === 'Kost Putra'
+            ? '[Tipe: Khusus Putra]'
+            : '[Tipe: Campur]';
 
-        if (!alreadyPrefixed) {
-          finalTitle = `${kosGender} ${finalTitle}`;
+        if (!finalDescription.startsWith('[Tipe:')) {
+          finalDescription = `${tag} ${finalDescription}`;
         }
       }
 
@@ -260,8 +258,8 @@ export default function AddPropertyPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: finalTitle,
-          description: form.description,
+          title: form.title.trim(),
+          description: finalDescription,
           price: priceNum,
           listingType: form.listingType,
           category: form.category,

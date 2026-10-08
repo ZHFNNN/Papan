@@ -90,16 +90,16 @@ function buildFinalProperties() {
         let title = `${cat.charAt(0) + cat.slice(1).toLowerCase()} di ${neighbourhood} #${globalCount}`;
         let description = getRandomDesc();
 
-        // Variasikan tipe kosan berdasarkan target penghuni (gender)
+        // Variasikan tipe kosan berdasarkan target penghuni (gender) di deskripsi
         if (cat === "KOSAN") {
           const kosTypes = [
-            { prefix: "Kost Putri", note: "Khusus mahasiswi / karyawati putri." },
-            { prefix: "Kost Putra", note: "Khusus mahasiswa / pria." },
-            { prefix: "Kost Campur", note: "Bisa untuk putra maupun putri / pasutri." },
+            { tag: "Khusus Putri", note: "Khusus mahasiswi / karyawati putri." },
+            { tag: "Khusus Putra", note: "Khusus mahasiswa / pria." },
+            { tag: "Campur", note: "Bisa untuk putra maupun putri / pasutri." },
           ];
           const chosen = kosTypes[i % kosTypes.length];
-          title = `${chosen.prefix} di ${neighbourhood} #${globalCount}`;
-          description = `${chosen.note} ${description}`;
+          title = `Kosan di ${neighbourhood} #${globalCount}`;
+          description = `[Tipe: ${chosen.tag}] ${chosen.note} ${description}`;
         }
 
         result.push({
