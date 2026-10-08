@@ -74,6 +74,11 @@ export async function sendVerificationEmail(params: {
     auth: config.auth,
   });
 
+  // Username diisi bebas saat register, jadi wajib di-escape supaya tidak bisa
+  // menyisipkan HTML/link palsu ke email resmi PAPAN.
+  const safeUsername = escapeHtml(params.username);
+  const safeVerifyUrl = escapeHtmlAttribute(params.verifyUrl);
+
   await transporter.sendMail({
     from: config.from,
     to: params.to,
@@ -90,15 +95,15 @@ export async function sendVerificationEmail(params: {
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
         <h2 style="margin:0 0 12px">Verifikasi email PAPAN</h2>
-        <p style="margin:0 0 12px">Halo ${params.username},</p>
+        <p style="margin:0 0 12px">Halo ${safeUsername},</p>
         <p style="margin:0 0 12px">Terima kasih sudah mendaftar di PAPAN. Klik tombol di bawah untuk memverifikasi email kamu.</p>
         <p style="margin:24px 0">
-          <a href="${params.verifyUrl}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px">
+          <a href="${safeVerifyUrl}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px">
             Verifikasi Email
           </a>
         </p>
         <p style="margin:0 0 12px">Atau salin tautan ini ke browser kamu:</p>
-        <p style="margin:0;word-break:break-all"><a href="${params.verifyUrl}">${params.verifyUrl}</a></p>
+        <p style="margin:0;word-break:break-all"><a href="${safeVerifyUrl}">${safeVerifyUrl}</a></p>
         <p style="margin:24px 0 0;color:#6b7280">Jika kamu tidak meminta pendaftaran ini, abaikan email ini.</p>
       </div>
     `,
