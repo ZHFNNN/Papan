@@ -19,6 +19,7 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,9 +33,35 @@ function LoginPageContent() {
       toast.success("Email berhasil diverifikasi. Silakan login.");
     }
     if (searchParams.get("verification") === "invalid") {
-      toast.error("Tautan verifikasi tidak valid atau sudah kedaluwarsa.");
+      toast.error("Tautan verifikasi tidak valid atau sudah kedaluwarsa. Kirim ulang lewat tautan di bawah kolom password.");
     }
   }, [searchParams]);
+
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      toast.error("Isi email kamu terlebih dahulu.");
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) {
+        toast.error(data.message ?? "Gagal mengirim ulang email verifikasi.");
+        return;
+      }
+      toast.success(data.message ?? "Cek email kamu untuk tautan verifikasi.");
+    } catch {
+      toast.error("Terjadi kesalahan jaringan. Coba lagi nanti.");
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     await signIn("google", { callbackUrl: callbackPath || "/auth/post-login" });
@@ -150,6 +177,17 @@ function LoginPageContent() {
               }}
             >
               {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
+            </button>
+          </div>
+          <div className={styles.forgotRow}>
+            <button
+              type="button"
+              className={styles.forgotLink}
+              onClick={handleResendVerification}
+              disabled={isResending}
+              style={{ background: "none", border: "none", padding: 0, fontFamily: "inherit" }}
+            >
+              {isResending ? "Mengirim..." : "Belum menerima email verifikasi? Kirim ulang"}
             </button>
           </div>
         </div>
