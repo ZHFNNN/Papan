@@ -25,6 +25,15 @@ export function normalizeListingType(listingType: unknown): ListingType | null {
   return (LISTING_TYPES as readonly string[]).includes(normalized) ? (normalized as ListingType) : null;
 }
 
+/** Pilihan tipe kos di form tambah & edit properti. */
+export const KOSAN_GENDER_OPTIONS: readonly { value: KosanGenderTarget; label: string }[] = [
+  { value: 'PUTRI', label: 'Kost Putri' },
+  { value: 'PUTRA', label: 'Kost Putra' },
+  { value: 'CAMPUR', label: 'Kost Campur' },
+];
+
+export const KOSAN_GENDER_REQUIRED_MESSAGE = 'Tipe gender kosan wajib dipilih (Putra, Putri, atau Campur).';
+
 /** "putri" -> PUTRI. Nilai lain -> null. */
 export function normalizeGenderTarget(genderTarget: unknown): KosanGenderTarget | null {
   if (typeof genderTarget !== 'string') return null;
@@ -32,6 +41,23 @@ export function normalizeGenderTarget(genderTarget: unknown): KosanGenderTarget 
   return (KOSAN_GENDER_TARGETS as readonly string[]).includes(normalized)
     ? (normalized as KosanGenderTarget)
     : null;
+}
+
+/**
+ * genderTarget yang disimpan untuk sebuah properti.
+ * - Selain kosan: selalu null (termasuk saat kategori diganti dari kosan).
+ * - Kosan: pakai `requested` kalau dikirim, kalau tidak pertahankan `current`.
+ *   Kosan wajib punya gender, jadi gagal kalau keduanya kosong / tidak valid.
+ */
+export function resolveGenderTarget(
+  category: PropertyCategory,
+  requested: unknown,
+  current: string | null | undefined,
+): { ok: true; genderTarget: KosanGenderTarget | null } | { ok: false; message: string } {
+  if (category !== 'KOSAN') return { ok: true, genderTarget: null };
+
+  const genderTarget = requested === undefined ? normalizeGenderTarget(current) : normalizeGenderTarget(requested);
+  return genderTarget ? { ok: true, genderTarget } : { ok: false, message: KOSAN_GENDER_REQUIRED_MESSAGE };
 }
 
 /** Kode fasilitas untuk nama fasilitas yang diketik owner: "Kolam Renang" -> custom_kolam_renang. */
