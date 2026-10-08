@@ -234,7 +234,6 @@ export default function AdminNotificationsPage() {
                 />
                 {safeImageUrl && (
                   <div className={styles.imagePreviewBox}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={safeImageUrl} alt="preview" className={styles.imagePreview}
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
@@ -385,7 +384,6 @@ export default function AdminNotificationsPage() {
                 {sentHistory.map(n => (
                   <div key={n.id} className={styles.historyItem}>
                     {n.imageUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={optimizeImage(n.imageUrl, IMAGE_WIDTH.thumb)} alt="" className={styles.historyImg} loading="lazy" decoding="async" />
                     )}
                     <div className={styles.historyContent}>

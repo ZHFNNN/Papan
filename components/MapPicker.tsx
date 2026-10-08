@@ -5,7 +5,11 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react';
+import type { Circle, LeafletMouseEvent, Map as LeafletMap, Marker } from 'leaflet';
 import styles from './MapPicker.module.css';
+
+// Leaflet di-import dinamis (butuh `window`), jadi tipenya diambil dari modulnya
+type LeafletModule = typeof import('leaflet');
 
 export type PickedLocation = {
   displayName: string;
@@ -59,16 +63,16 @@ type UserLocStatus = 'requesting' | 'active' | 'denied' | 'unavailable';
 
 export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef          = useRef<any>(null);
-  const leafletRef      = useRef<any>(null);
+  const mapRef          = useRef<LeafletMap | null>(null);
+  const leafletRef      = useRef<LeafletModule | null>(null);
   const isInitializingMapRef = useRef(false);
 
   // Dua layer yang berbeda:
   // selectionMarker = pin merah tempat user memilih daerah
   // blueDot + accuracyCircle = menandai posisi fisik user sekarang
-  const selectionMarkerRef = useRef<any>(null);
-  const blueDotRef         = useRef<any>(null);
-  const accuracyCircleRef  = useRef<any>(null);
+  const selectionMarkerRef = useRef<Marker | null>(null);
+  const blueDotRef         = useRef<Marker | null>(null);
+  const accuracyCircleRef  = useRef<Circle | null>(null);
   const watchIdRef         = useRef<number | null>(null);
 
   const [pickedLocation, setPickedLocation] = useState<PickedLocation | null>(null);
@@ -98,7 +102,7 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
       }
 
       // Fix broken icons di Next.js / webpack
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
         iconUrl:       'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -118,7 +122,7 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
       }).addTo(map);
 
       // Klik di peta → selection marker
-      map.on('click', async (e: any) => {
+      map.on('click', async (e: LeafletMouseEvent) => {
         await placeSelectionMarker(e.latlng.lat, e.latlng.lng, L, map);
       });
 
@@ -158,7 +162,7 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
   //
   // Blue dot dibuat dari divIcon (HTML/CSS murni) bukan image PNG,
   // supaya kita bisa kontrol penuh tampilannya termasuk animasi pulse.
-  const startUserLocationWatch = (L: any, map: any) => {
+  const startUserLocationWatch = (L: LeafletModule, map: LeafletMap) => {
     if (!navigator.geolocation) {
       setUserLocStatus('unavailable');
       map.setView([-7.5, 110], 8); // fallback: tampilkan Jawa
@@ -264,11 +268,13 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
   };
 
   // ── Pasang selection marker + reverse geocode ─────────────────────────────
-  const placeSelectionMarker = async (lat: number, lng: number, L: any, map: any) => {
-    if (selectionMarkerRef.current) {
-      selectionMarkerRef.current.setLatLng([lat, lng]);
+  const placeSelectionMarker = async (lat: number, lng: number, L: LeafletModule, map: LeafletMap) => {
+    let marker = selectionMarkerRef.current;
+    if (marker) {
+      marker.setLatLng([lat, lng]);
     } else {
-      selectionMarkerRef.current = L.marker([lat, lng]).addTo(map);
+      marker = L.marker([lat, lng]).addTo(map);
+      selectionMarkerRef.current = marker;
     }
 
     setIsGeocoding(true);
@@ -285,7 +291,7 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
       const loc = parseNominatim(data, lat, lng);
       setPickedLocation(loc);
 
-      selectionMarkerRef.current
+      marker
         .bindPopup(`<b>${loc.neighbourhood || loc.district || loc.city}</b><br/>${loc.city}`)
         .openPopup();
     } catch {
@@ -303,7 +309,9 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
 
   // ── Search teks ──────────────────────────────────────────────────────────
   const handleSearch = async () => {
-    if (!searchQuery.trim() || !mapRef.current) return;
+    const map = mapRef.current;
+    const L = leafletRef.current;
+    if (!searchQuery.trim() || !map || !L) return;
     setIsSearching(true);
     setSearchError(null);
 
@@ -319,9 +327,9 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
 
       const lat = parseFloat(results[0].lat);
       const lng = parseFloat(results[0].lon);
-      mapRef.current.flyTo([lat, lng], 15, { duration: 1 });
+      map.flyTo([lat, lng], 15, { duration: 1 });
 
-      await placeSelectionMarker(lat, lng, leafletRef.current, mapRef.current);
+      await placeSelectionMarker(lat, lng, L, map);
     } catch {
       setSearchError('Gagal mencari lokasi. Coba lagi.');
     } finally {

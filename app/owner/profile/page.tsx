@@ -22,46 +22,6 @@ type OwnerProfile = {
   _count?: { properties: number };
 };
 
-const KYC_CONFIG: Record<KycStatus, {
-  emoji: string;
-  title: string;
-  desc: string;
-  btnLabel?: string;
-  btnHref?: string;
-  colorClass: string;
-}> = {
-  NONE: {
-    emoji: '🔒',
-    title: 'Belum Terverifikasi',
-    desc: 'Verifikasi identitasmu untuk bisa menambahkan properti dan mengakses semua fitur PAPAN.',
-    btnLabel: 'Mulai Verifikasi',
-    btnHref: '/owner/verify',
-    colorClass: 'kycNone',
-  },
-  PENDING: {
-    emoji: '⏳',
-    title: 'Sedang Ditinjau',
-    desc: 'Pengajuan verifikasi kamu sedang diproses oleh tim kami. Proses peninjauan 1×24 jam kerja.',
-    colorClass: 'kycPending',
-  },
-  APPROVED: {
-    emoji: '✅',
-    title: 'Terverifikasi',
-    desc: 'Identitasmu telah berhasil diverifikasi. Kamu bisa menambahkan dan mengelola properti.',
-    btnLabel: 'Tambah Properti',
-    btnHref: '/owner/addProperty',
-    colorClass: 'kycApproved',
-  },
-  REJECTED: {
-    emoji: '❌',
-    title: 'Pengajuan Ditolak',
-    desc: 'Pengajuan verifikasimu ditolak. Silakan cek catatan admin dan ajukan ulang.',
-    btnLabel: 'Ajukan Ulang',
-    btnHref: '/owner/verify',
-    colorClass: 'kycRejected',
-  },
-};
-
 export default function OwnerProfilePage() {
   const router = useRouter();
   const [avatarSrc, setAvatarSrc] = useState<string>(DEFAULT_AVATAR);

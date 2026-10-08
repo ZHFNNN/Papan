@@ -133,8 +133,8 @@ export default function PersonalisasiPage() {
         throw new Error(data.message ?? 'Gagal menyimpan data.');
       }
       router.push('/');
-    } catch (err: any) {
-      setSubmitError(err.message ?? 'Terjadi kesalahan. Coba lagi.');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Terjadi kesalahan. Coba lagi.');
     } finally {
       setIsSubmitting(false);
     }

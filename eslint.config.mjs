@@ -10,6 +10,12 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@next/next/no-html-link-for-pages": "warn",
+      // Gambar sengaja pakai <img> + optimizeImage() (lib/image.ts) yang meminta
+      // ukuran kecil langsung ke Cloudinary. Sebagian src juga tidak cocok untuk
+      // next/image: preview blob:, foto KYC privat lewat /api/kyc/image, dan data
+      // URI ulasan lama. next/image di atas Cloudinary hanya menambah kuota
+      // Image Optimization Vercel tanpa manfaat.
+      "@next/next/no-img-element": "off",
     },
   },
   // Override default ignores of eslint-config-next.

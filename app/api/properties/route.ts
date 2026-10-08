@@ -157,8 +157,8 @@ export async function GET(request: Request) {
   const nonBoosted = nonBoostedCandidates.slice(0, Math.max(take - boosted.length, 0));
 
   const data = [...boosted, ...nonBoosted].map((property) => {
-    const activeBoost = property.boosts[0] ?? null;
     const { boosts, facilities, discountActiveUntil, ...plainProperty } = property;
+    const activeBoost = boosts[0] ?? null;
 
     const isDiscountActive =
       typeof property.discountPercentage === 'number' &&

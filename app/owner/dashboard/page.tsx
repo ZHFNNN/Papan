@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
@@ -109,7 +109,7 @@ export default function OwnerDashboardPage() {
   const [deleteModalError, setDeleteModalError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch('/api/owner/dashboard');
       if (!res.ok) {
@@ -127,11 +127,11 @@ export default function OwnerDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchDashboard();
-  }, [router]);
+  }, [fetchDashboard]);
 
   const openDeleteModal = (property: Property) => {
     setDeleteCandidate({ id: property.id, title: property.title });
