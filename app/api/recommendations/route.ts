@@ -3,7 +3,6 @@ import { requireAuth } from "@/lib/require-user";
 import { personalizationBooleanCodes } from "@/lib/dss/facility-mapping";
 import {
   FIXED_CRITERIA_WEIGHTS,
-  filterRequiredFacilities,
   normalizeBudgetScore,
   normalizeFacilityScore,
   normalizeGenderScore,
@@ -119,15 +118,7 @@ export async function GET() {
   });
   const selectedFacilityCodes = relationalPreferredCodes.length > 0 ? relationalPreferredCodes : fallbackPreferredCodes;
 
-  // Fasilitas yang ditandai sebagai wajib (must-have)
-  const requiredFacilityCodes = preferenceFacilities
-    .filter((pref) => pref.isRequired)
-    .map((pref) => pref.facility.code);
-
-  // Saring properti yang memenuhi semua fasilitas wajib (jika ada); jika tidak ada, fallback ke semua properti
-  const propertiesToScore = filterRequiredFacilities(properties, requiredFacilityCodes);
-
-  const scoredCandidates = propertiesToScore.map((property) => {
+  const scoredCandidates = properties.map((property) => {
     const priceNumber = Number(property.price);
     const text = `${property.title} ${property.description ?? ""} ${property.address ?? ""} ${property.neighbourhood ?? ""} ${property.district ?? ""} ${property.city ?? ""}`.toLowerCase();
 
@@ -182,7 +173,6 @@ export async function GET() {
         matchedFacilityCodes: facilityResult.matched,
         selectedFacilityCodes,
         propertyFacilityCodes,
-        requiredFacilityCodes,
       },
     };
   });

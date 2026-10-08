@@ -104,18 +104,3 @@ export function normalizeFacilityScore(
     matched: Array.from(new Set(matched)),
   };
 }
-
-export function filterRequiredFacilities<
-  T extends { facilities: Array<{ facility: { code: string } }> },
->(properties: T[], requiredFacilityCodes: string[]): T[] {
-  if (requiredFacilityCodes.length === 0) {
-    return properties;
-  }
-
-  const filtered = properties.filter((property) => {
-    const propCodes = new Set(property.facilities.map((item) => item.facility.code));
-    return requiredFacilityCodes.every((code) => propCodes.has(code));
-  });
-
-  return filtered.length > 0 ? filtered : properties;
-}

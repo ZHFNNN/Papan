@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   FIXED_CRITERIA_WEIGHTS,
-  filterRequiredFacilities,
   normalizeBudgetScore,
   normalizeFacilityScore,
   normalizeGenderScore,
@@ -181,29 +180,5 @@ describe("FIXED_CRITERIA_WEIGHTS contract", () => {
       FIXED_CRITERIA_WEIGHTS.location +
       FIXED_CRITERIA_WEIGHTS.facilities;
     expect(total).toBeCloseTo(1, 5);
-  });
-});
-
-describe("filterRequiredFacilities — filtering contract", () => {
-  const dummyProperties = [
-    { id: "1", facilities: [{ facility: { code: "AC" } }, { facility: { code: "WIFI" } }] },
-    { id: "2", facilities: [{ facility: { code: "WIFI" } }] },
-    { id: "3", facilities: [{ facility: { code: "AC" } }, { facility: { code: "PARKIR_MOBIL" } }] },
-  ];
-
-  it("returns all properties when requiredFacilityCodes is empty", () => {
-    const result = filterRequiredFacilities(dummyProperties, []);
-    expect(result).toHaveLength(3);
-  });
-
-  it("filters properties that have all required facilities", () => {
-    const result = filterRequiredFacilities(dummyProperties, ["AC", "WIFI"]);
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("1");
-  });
-
-  it("falls back to all properties when no property matches all required", () => {
-    const result = filterRequiredFacilities(dummyProperties, ["SWIMMING_POOL"]);
-    expect(result).toHaveLength(3);
   });
 });
