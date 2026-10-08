@@ -1,8 +1,8 @@
 'use client';
 
-// components/KategoriPage.tsx
-// Komponen reusable untuk semua halaman kategori (Apartemen, Rumah, Kosan)
-// Usage: tinggal pass props category, aktif, bgImage, overlays
+// app/kategori/[kategori]/KategoriPage.tsx
+// Komponen untuk semua halaman kategori (Apartemen, Rumah, Kosan),
+// dirender oleh app/kategori/[kategori]/page.tsx sesuai KATEGORI_CONFIG.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
