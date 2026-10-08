@@ -265,6 +265,7 @@ export default function ProfileEditForm({ backHref, standalone = false }: Profil
           disabled={isUploading}
         />
         {isUploading && <p className={styles.uploadingText}>Mengunggah...</p>}
+        {uploadError && <p className={styles.errorMsg}>{uploadError}</p>}
       </div>
     </div>
 

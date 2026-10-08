@@ -75,10 +75,6 @@ function parseRawPrice(price: string | number): number {
   return parseInt(String(price).replace(/[^0-9]/g, ''), 10) || 0;
 }
 
-function getInitials(name: string) {
-  return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-}
-
 // ─── Sub-components ───────────────────────────────────────────
 
 // Price range slider
@@ -221,23 +217,6 @@ function ListCard({ prop }: { prop: PropertyCardData }) {
         </div>
       </article>
     </Link>
-  );
-}
-
-// Map pin marker
-function MapPin({ prop, active, onClick }: { prop: PropertyCardData; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      className={`${styles.mapPin} ${active ? styles.mapPinActive : ''}`}
-      style={{
-        // Kalau lat/lng ada, ini bisa diposisikan dengan CSS absolute
-        // Untuk sekarang kita tampilkan sebagai list di samping map
-      }}
-      onClick={onClick}
-      aria-label={prop.title}
-    >
-      <span className={styles.mapPinPrice}>{formatPrice(prop.price)}</span>
-    </button>
   );
 }
 

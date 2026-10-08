@@ -58,6 +58,8 @@ export function usePromoProperties(enabled: boolean): PropertyListState {
 export function usePromoPopup() {
   const [isOpen, setIsOpen] = useState(false);
 
+  // sessionStorage hanya ada di browser: dicek setelah mount supaya render
+  // server dan render pertama di browser sama (tidak hydration mismatch).
   useEffect(() => {
     try {
       if (sessionStorage.getItem(PROMO_POPUP_SEEN_KEY)) return;
@@ -65,6 +67,7 @@ export function usePromoPopup() {
     } catch {
       // storage tidak tersedia: tetap tampilkan popup
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsOpen(true);
   }, []);
 

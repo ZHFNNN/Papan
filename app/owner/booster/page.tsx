@@ -405,7 +405,8 @@ export default function OwnerBoosterPage() {
         .catch(() => addToast('Gagal memuat properti.', 'error'))
         .finally(() => setPropertiesLoading(false));
     }
-  }, [step]);
+    // addToast stabil (useCallback); properties.length hanya berubah setelah fetch selesai
+  }, [step, properties.length, addToast]);
 
   const handleSelectPackage = (pkg: BoosterPackage) => {
     setSelectedPkg(pkg);

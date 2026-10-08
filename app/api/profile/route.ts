@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth'; // sesuaikan path auth config kamu
 import { prisma } from '@/lib/prisma';
 
 // GET /api/profile — ambil data user yang sedang login
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 

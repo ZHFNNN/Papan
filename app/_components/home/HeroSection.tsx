@@ -28,9 +28,12 @@ export default function HeroSection() {
   // Overlay bangunan (~600KB/gambar) baru diunduh setelah mouse masuk ke hero
   const [overlaysArmed, setOverlaysArmed] = useState(false);
 
+  // sessionStorage hanya ada di browser: dibaca setelah mount supaya render
+  // server dan render pertama di browser sama (tidak hydration mismatch).
   useEffect(() => {
     const saved = consumeSavedSpot();
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOverlaysArmed(true);
       setHoveredSpot(saved);
     }
