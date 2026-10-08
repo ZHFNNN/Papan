@@ -20,6 +20,7 @@ export default defineConfig({
         "lib/format-price.ts",
         "lib/booster.ts",
         "lib/midtrans.ts",
+        "lib/kyc-image.ts",
       ],
     },
   },
