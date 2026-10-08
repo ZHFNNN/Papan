@@ -138,13 +138,17 @@ export async function GET(request: Request) {
     },
   } satisfies Prisma.PropertyInclude;
 
+  // Boost aktif = sudah mulai dan belum berakhir, sama dengan `isBoosted` di bawah.
+  // Boost yang dijadwalkan (startsAt di masa depan) belum dihitung.
+  const activeBoostWhere = { startsAt: { lte: now }, endsAt: { gt: now } } satisfies Prisma.PropertyBoostWhereInput;
+
   // Dua query dijalankan paralel (bukan berurutan) supaya respons lebih cepat.
   // Properti boosted selalu di depan, sisanya diisi properti biasa sampai `take`.
   const [boosted, nonBoostedCandidates] = await Promise.all([
     prisma.property.findMany({
       where: {
         ...baseWhere,
-        boosts: { some: { endsAt: { gt: now } } },
+        boosts: { some: activeBoostWhere },
       },
       include: includeConfig,
       orderBy: { createdAt: 'desc' },
@@ -153,7 +157,7 @@ export async function GET(request: Request) {
     prisma.property.findMany({
       where: {
         ...baseWhere,
-        boosts: { none: { endsAt: { gt: now } } },
+        boosts: { none: activeBoostWhere },
       },
       include: includeConfig,
       orderBy: { createdAt: 'desc' },
