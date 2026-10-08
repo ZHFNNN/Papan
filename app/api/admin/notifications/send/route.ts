@@ -13,9 +13,14 @@ export async function POST(request: Request) {
     imageUrl: string | null;
     category: PropertyCategory | null;
     city: string | null;
+    type?: string | null;
   };
 
   const { title, message, imageUrl, category, city } = body;
+  const ALLOWED_TYPES = new Set(['ADMIN_BROADCAST', 'PROMO_SUGGESTION']);
+  const notifType = typeof body.type === 'string' && ALLOWED_TYPES.has(body.type)
+    ? body.type
+    : 'ADMIN_BROADCAST';
 
   if (!title?.trim() || !message?.trim()) {
     return Response.json({ message: 'Judul dan pesan wajib diisi.' }, { status: 400 });
@@ -51,7 +56,7 @@ export async function POST(request: Request) {
       title: title.trim(),
       message: message.trim(),
       imageUrl: imageUrl ?? null,
-      type: 'ADMIN_BROADCAST',
+      type: notifType,
       isRead: false,
     })),
   });

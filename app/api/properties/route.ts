@@ -1,6 +1,11 @@
 import { KycStatus, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import {
+  getCachedPropertyList,
+  invalidatePropertyListCache,
+  setCachedPropertyList,
+} from '@/lib/property-list-cache';
 import { requireAuth } from '@/lib/require-user';
 
 const createPropertySchema = z.object({
@@ -44,43 +49,64 @@ export async function GET(request: Request) {
   const categoryFilter = normalizeCategory(url.searchParams.get('category'));
   const listingTypeFilter = normalizeListingType(url.searchParams.get('listingType'));
   const searchQuery = url.searchParams.get('q')?.trim();
+  const promoOnly = url.searchParams.get('promo') === '1' || url.searchParams.get('promo') === 'true';
 
   const takeRaw = Number(url.searchParams.get('take') ?? '120');
   const take = Number.isFinite(takeRaw)
     ? Math.min(Math.max(Math.trunc(takeRaw), 1), 200)
     : 120;
 
+  const cacheKey = JSON.stringify([categoryFilter, listingTypeFilter, searchQuery ?? '', promoOnly, take]);
+  const cached = getCachedPropertyList(cacheKey);
+  if (cached) {
+    return Response.json(cached);
+  }
+
   const now = new Date();
-  const baseWhere: Prisma.PropertyWhereInput = {};
+  const conditions: Prisma.PropertyWhereInput[] = [];
 
   if (categoryFilter) {
-    baseWhere.category = categoryFilter;
+    conditions.push({ category: categoryFilter });
   }
 
   if (listingTypeFilter) {
-    baseWhere.listingType = { in: listingTypeFilter };
+    conditions.push({ listingType: { in: listingTypeFilter } });
   }
 
   if (searchQuery) {
-    baseWhere.OR = [
-      { title: { contains: searchQuery, mode: 'insensitive' } },
-      { address: { contains: searchQuery, mode: 'insensitive' } },
-      { neighbourhood: { contains: searchQuery, mode: 'insensitive' } },
-      { district: { contains: searchQuery, mode: 'insensitive' } },
-      { city: { contains: searchQuery, mode: 'insensitive' } },
-      { owner: { name: { contains: searchQuery, mode: 'insensitive' } } },
-      { owner: { username: { contains: searchQuery, mode: 'insensitive' } } },
-      {
-        facilities: {
-          some: {
-            facility: {
-              name: { contains: searchQuery, mode: 'insensitive' },
+    conditions.push({
+      OR: [
+        { title: { contains: searchQuery, mode: 'insensitive' } },
+        { address: { contains: searchQuery, mode: 'insensitive' } },
+        { neighbourhood: { contains: searchQuery, mode: 'insensitive' } },
+        { district: { contains: searchQuery, mode: 'insensitive' } },
+        { city: { contains: searchQuery, mode: 'insensitive' } },
+        { owner: { name: { contains: searchQuery, mode: 'insensitive' } } },
+        { owner: { username: { contains: searchQuery, mode: 'insensitive' } } },
+        {
+          facilities: {
+            some: {
+              facility: {
+                name: { contains: searchQuery, mode: 'insensitive' },
+              },
             },
           },
         },
-      },
-    ];
+      ],
+    });
   }
+
+  if (promoOnly) {
+    conditions.push({
+      discountPercentage: { gt: 0 },
+      OR: [
+        { discountActiveUntil: null },
+        { discountActiveUntil: { gt: now } },
+      ],
+    });
+  }
+
+  const baseWhere: Prisma.PropertyWhereInput = conditions.length ? { AND: conditions } : {};
 
   const includeConfig = {
     owner: {
@@ -125,52 +151,46 @@ export async function GET(request: Request) {
     },
   } satisfies Prisma.PropertyInclude;
 
-  const boosted = await prisma.property.findMany({
-    where: {
-      ...baseWhere,
-      boosts: {
-        some: {
-          endsAt: {
-            gt: now,
-          },
-        },
+  // Dua query dijalankan paralel (bukan berurutan) supaya respons lebih cepat.
+  // Properti boosted selalu di depan, sisanya diisi properti biasa sampai `take`.
+  const [boosted, nonBoostedCandidates] = await Promise.all([
+    prisma.property.findMany({
+      where: {
+        ...baseWhere,
+        boosts: { some: { endsAt: { gt: now } } },
       },
-    },
-    include: includeConfig,
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take,
-  });
+      include: includeConfig,
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+    prisma.property.findMany({
+      where: {
+        ...baseWhere,
+        boosts: { none: { endsAt: { gt: now } } },
+      },
+      include: includeConfig,
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+  ]);
 
-  const remaining = Math.max(take - boosted.length, 0);
-  const nonBoosted = remaining
-    ? await prisma.property.findMany({
-        where: {
-          ...baseWhere,
-          boosts: {
-            none: {
-              endsAt: {
-                gt: now,
-              },
-            },
-          },
-        },
-        include: includeConfig,
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: remaining,
-      })
-    : [];
+  const nonBoosted = nonBoostedCandidates.slice(0, Math.max(take - boosted.length, 0));
 
   const data = [...boosted, ...nonBoosted].map((property) => {
     const activeBoost = property.boosts[0] ?? null;
-    const { boosts, facilities, ...plainProperty } = property;
+    const { boosts, facilities, discountActiveUntil, ...plainProperty } = property;
+
+    const isDiscountActive =
+      typeof property.discountPercentage === 'number' &&
+      property.discountPercentage > 0 &&
+      (discountActiveUntil === null || (discountActiveUntil && discountActiveUntil > now));
 
     return {
       ...plainProperty,
       price: property.price.toString(),
+      discountPercentage: property.discountPercentage ?? null,
+      discountActiveUntil: discountActiveUntil ? discountActiveUntil.toISOString() : null,
+      isDiscountActive: Boolean(isDiscountActive),
       isBoosted: Boolean(activeBoost),
       activeBoost: activeBoost
         ? {
@@ -190,10 +210,13 @@ export async function GET(request: Request) {
     };
   });
 
-  return Response.json({
+  const body = {
     message: 'Daftar properti berhasil diambil.',
     data,
-  });
+  };
+  setCachedPropertyList(cacheKey, body);
+
+  return Response.json(body);
 }
 
 export async function POST(request: Request) {
@@ -238,5 +261,6 @@ export async function POST(request: Request) {
     }
   });
 
+  invalidatePropertyListCache();
   return Response.json({ message: 'Listing berhasil dibuat', data: property }, { status: 201 });
 }

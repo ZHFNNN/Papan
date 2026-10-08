@@ -1,13 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-user";
 import { personalizationBooleanCodes } from "@/lib/dss/facility-mapping";
-import {
-  FIXED_CRITERIA_WEIGHTS,
-  normalizeBudgetScore,
-  normalizeFacilityScore,
-  normalizeGenderScore,
-  normalizeLocationScore,
-} from "@/lib/dss/scoring";
+import { normalizeGenderScore, resolveCriteriaWeights, scoreProperty } from "@/lib/dss/scoring";
 
 export async function GET() {
   const auth = await requireAuth();
@@ -18,7 +12,7 @@ export async function GET() {
   const userId = auth.session.user.id;
   const now = new Date();
 
-  const [personalization, preferenceFacilities] = await Promise.all([
+  const [personalization, preferenceFacilities, criteriaWeightRows] = await Promise.all([
     prisma.userPersonalization.findUnique({
       where: { userId },
       select: {
@@ -46,6 +40,13 @@ export async function GET() {
         },
       },
     }),
+    prisma.userCriteriaWeight.findMany({
+      where: { userId },
+      select: {
+        criteria: true,
+        weight: true,
+      },
+    }),
   ]);
 
   if (!personalization) {
@@ -71,6 +72,8 @@ export async function GET() {
       imageUrls: true,
       description: true,
       price: true,
+      discountPercentage: true,
+      discountActiveUntil: true,
       listingType: true,
       createdAt: true,
       facilities: {
@@ -118,11 +121,11 @@ export async function GET() {
     prefDekatTransportasi: personalization.prefDekatTransportasi,
   });
   const selectedFacilityCodes = relationalPreferredCodes.length > 0 ? relationalPreferredCodes : fallbackPreferredCodes;
+  const { weights, source: weightsSource } = resolveCriteriaWeights(criteriaWeightRows);
 
   const scoredCandidates = properties.map((property) => {
     const priceNumber = Number(property.price);
     const text = `${property.title} ${property.description ?? ""} ${property.address ?? ""} ${property.neighbourhood ?? ""} ${property.district ?? ""} ${property.city ?? ""}`.toLowerCase();
-
     // Cek kecocokan gender (khusus KOSAN)
     const genderScore = normalizeGenderScore(
       personalization.gender,
@@ -135,16 +138,25 @@ export async function GET() {
     if (genderScore === 0) {
       return null;
     }
-
-    const budgetScore = normalizeBudgetScore(priceNumber, personalization.budgetMin, personalization.budgetMax);
-    const locationScore = normalizeLocationScore(personalization.location, text);
     const propertyFacilityCodes = property.facilities.map((item) => item.facility.code);
-    const facilityResult = normalizeFacilityScore(selectedFacilityCodes, propertyFacilityCodes);
 
-    const totalScore =
-      budgetScore * FIXED_CRITERIA_WEIGHTS.budget +
-      locationScore * FIXED_CRITERIA_WEIGHTS.location +
-      facilityResult.score * FIXED_CRITERIA_WEIGHTS.facilities;
+    const result = scoreProperty(
+      {
+        price: priceNumber,
+        discountPercentage: property.discountPercentage,
+        discountActiveUntil: property.discountActiveUntil,
+        searchText: text,
+        facilityCodes: propertyFacilityCodes,
+      },
+      {
+        budgetMin: personalization.budgetMin,
+        budgetMax: personalization.budgetMax,
+        location: personalization.location,
+        facilityCodes: selectedFacilityCodes,
+      },
+      weights,
+      now,
+    );
 
     const activeBoost = property.boosts[0] ?? null;
     const isBoosted = Boolean(activeBoost);
@@ -162,7 +174,7 @@ export async function GET() {
       district: property.district,         
       city: property.city,                 
       price: priceNumber,
-      score: Number(totalScore.toFixed(4)),
+      score: Number(result.score.toFixed(4)),
       isBoosted,
       boost: activeBoost
         ? {
@@ -173,13 +185,14 @@ export async function GET() {
           }
         : null,
       breakdown: {
-        budgetScore: Number(budgetScore.toFixed(4)),
-        locationScore: Number(locationScore.toFixed(4)),
-        facilityScore: Number(facilityResult.score.toFixed(4)),
+        budgetScore: Number(result.budgetScore.toFixed(4)),
+        locationScore: Number(result.locationScore.toFixed(4)),
+        facilityScore: Number(result.facilityScore.toFixed(4)),
         genderScore: Number(genderScore.toFixed(4)),
-        matchedFacilityCodes: facilityResult.matched,
+        matchedFacilityCodes: result.matchedFacilityCodes,
         selectedFacilityCodes,
         propertyFacilityCodes,
+        effectivePrice: result.effectivePrice,
       },
     };
   });
@@ -195,15 +208,16 @@ export async function GET() {
       return b.score - a.score;
     }
 
-    return a.price - b.price;
+    return a.breakdown.effectivePrice - b.breakdown.effectivePrice;
   });
 
   return Response.json({
     message: "Rekomendasi berhasil dihitung.",
     data: scored.slice(0, 20),
     meta: {
-      algorithm: "SAW-like weighted scoring (fixed balanced weights)",
-      weights: FIXED_CRITERIA_WEIGHTS,
+      algorithm: "SAW-like weighted scoring (per-user criteria weights, discount-aware budget)",
+      weights,
+      weightsSource,
       totalCandidates: properties.length,
       selectedFacilitySource: relationalPreferredCodes.length > 0 ? "user_preference_facility" : "user_personalization_booleans",
       boosterRule: "Active booster always first, then by DSS score",

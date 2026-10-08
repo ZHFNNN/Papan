@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 const DEFAULT_AVATAR = '/images/ppdefault.png';
 
@@ -235,7 +236,7 @@ export default function EditProfilePage() {
           onClick={() => fileInputRef.current?.click()}
         >
           <img
-            src={avatarPreview}
+            src={optimizeImage(avatarPreview, 480)}
             alt="Foto profil"
             className={styles.avatarImage}
             onError={() => setAvatarPreview(DEFAULT_AVATAR)}

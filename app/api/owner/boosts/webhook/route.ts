@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { getBoostEndsAt } from '@/lib/booster';
 import { getMidtransSignatureKey } from '@/lib/midtrans';
 
@@ -166,6 +167,8 @@ export async function POST(req: Request) {
       },
     });
   });
+  // Boost baru aktif -> urutan daftar properti publik berubah
+  invalidatePropertyListCache();
 
   return NextResponse.json({ success: true });
 }

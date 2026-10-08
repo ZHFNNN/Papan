@@ -282,11 +282,13 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.75rem;
-  max-width: 240px;
+	width: 100%;
+	max-width: none;
 }
 
 .editButton {
-	width: 1040px;
+	width: 100%;
+	max-width: none;
 	background: #ffffff;
 	border: 2px solid #19263c;
 	border-radius: 16px;
@@ -655,6 +657,16 @@
 
 /* ── Responsive KYC card ── */
 @media (max-width: 480px) {
+	.editButton {
+		border-radius: 14px;
+		padding: 0.65rem 0.75rem;
+		border-width: 1.5px;
+	}
+
+	.editButtonText {
+		font-size: 13px;
+	}
+
   .kycCard {
     flex-direction: column;
     align-items: flex-start;
