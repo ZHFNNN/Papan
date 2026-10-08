@@ -22,6 +22,8 @@ export default defineConfig({
         "lib/midtrans.ts",
         "lib/kyc-image.ts",
         "lib/review-photos.ts",
+        "lib/property-input.ts",
+        "lib/upload.ts",
       ],
     },
   },

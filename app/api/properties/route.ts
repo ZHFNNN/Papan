@@ -1,21 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { normalizeCategory } from '@/lib/property-input';
 import { getCachedPropertyList, setCachedPropertyList } from '@/lib/property-list-cache';
 
-type PropertyCategory = 'RUMAH' | 'APARTEMEN' | 'KOSAN';
-
-function normalizeCategory(value: string | null): PropertyCategory | null {
-  if (!value) return null;
-
-  const normalized = value.trim().toUpperCase();
-  if (normalized === 'RUMAH' || normalized === 'APARTEMEN' || normalized === 'KOSAN') {
-    return normalized;
-  }
-
-  return null;
-}
-
-function normalizeListingType(value: string | null): string[] | null {
+// Untuk filter: cocokkan nilai lama (SELL/RENT/KOSAN) maupun baru (JUAL/SEWA) di database
+function normalizeListingTypeFilter(value: string | null): string[] | null {
   if (!value) return null;
 
   const normalized = value.trim().toUpperCase();
@@ -34,7 +23,7 @@ function normalizeListingType(value: string | null): string[] | null {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const categoryFilter = normalizeCategory(url.searchParams.get('category'));
-  const listingTypeFilter = normalizeListingType(url.searchParams.get('listingType'));
+  const listingTypeFilter = normalizeListingTypeFilter(url.searchParams.get('listingType'));
   const searchQuery = url.searchParams.get('q')?.trim();
   const promoOnly = url.searchParams.get('promo') === '1' || url.searchParams.get('promo') === 'true';
 
