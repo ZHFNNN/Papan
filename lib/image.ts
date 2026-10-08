@@ -6,6 +6,35 @@ export const IMAGE_WIDTH = {
 } as const;
 
 const CLOUDINARY_UPLOAD_SEGMENT = '/image/upload/';
+// secure_url hasil upload: /<cloud>/image/upload/v<versi>/<public_id>.<ext> (tanpa transformasi)
+const CLOUDINARY_UPLOAD_PATH = /^\/([^/]+)\/image\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i;
+
+/**
+ * Pecah secure_url Cloudinary menjadi nama cloud dan public_id, misalnya
+ * https://res.cloudinary.com/demo/image/upload/v1712/papan/ktp/abc.jpg
+ * -> { cloudName: 'demo', publicId: 'papan/ktp/abc' }.
+ * Mengembalikan null untuk URL yang bukan upload gambar Cloudinary via https.
+ */
+export function parseCloudinaryUploadUrl(url: string): { cloudName: string; publicId: string } | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') return null;
+
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(parsed.pathname);
+  } catch {
+    return null;
+  }
+
+  const match = CLOUDINARY_UPLOAD_PATH.exec(pathname);
+  return match ? { cloudName: match[1], publicId: match[2] } : null;
+}
 
 /**
  * Mengecilkan URL gambar sesuai lebar tampilan supaya browser tidak
