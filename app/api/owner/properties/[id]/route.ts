@@ -9,7 +9,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { invalidatePropertyListCache } from '@/lib/property-list-cache';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
@@ -193,6 +193,13 @@ export async function PATCH(
     ? imageUrls.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0)
     : null;
 
+  if (photoUrls && photoUrls.length < MIN_PROPERTY_PHOTOS) {
+    return NextResponse.json(
+      { message: `Minimal ${MIN_PROPERTY_PHOTOS} foto properti.` },
+      { status: 400 }
+    );
+  }
+
   // Resolve facilities — support code preset + nama custom
   const facilityRecords = facilityItems ? await resolveFacilityRecords(facilityItems) : [];
 
@@ -243,7 +250,6 @@ export async function PATCH(
     Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
   );
 
-  invalidatePropertyListCache();
   return NextResponse.json(
     {
       ...updated,
@@ -283,6 +289,5 @@ export async function DELETE(
 
   await prisma.property.delete({ where: { id } });
 
-  invalidatePropertyListCache();
   return NextResponse.json({ message: 'Properti berhasil dihapus.' });
 }
