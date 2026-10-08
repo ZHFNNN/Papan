@@ -44,16 +44,22 @@ const KATEGORI_CONFIG = {
   rumah: {
     aktif: 'Rumah',
     categoryApiValue: 'RUMAH',
-    bgImage: '/images/bgHomeRumah.png',
+    bgImage: '/images/bgHomeRumah.jpeg',
     hotspots: HOTSPOTS,
   },
   kosan: {
     aktif: 'Kosan',
     categoryApiValue: 'KOSAN',
-    bgImage: '/images/bgHomeKosan.png',
+    bgImage: '/images/bgHomeKosan.jpeg',
     hotspots: HOTSPOTS,
   },
 } as const;
+
+// /kategori/apartemen, /rumah, /kosan dibuat statis saat build.
+// Kategori lain tetap dirender saat diminta lalu diarahkan ke beranda.
+export function generateStaticParams() {
+  return Object.keys(KATEGORI_CONFIG).map((kategori) => ({ kategori }));
+}
 
 export default async function Page({ params }: Props) {
   const { kategori } = await params;
