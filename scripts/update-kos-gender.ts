@@ -35,7 +35,7 @@ async function main() {
     const cleanTitle = kos.title.replace(/^Kost\s+(Putri|Putra|Campur)\b/i, "Kosan").trim();
 
     // Bersihkan deskripsi lama dari tag atau note ganda jika ada
-    let cleanDesc = (kos.description ?? "")
+    const cleanDesc = (kos.description ?? "")
       .replace(/^\[Tipe:[^\]]+\]\s*/i, "")
       .replace(/^Khusus mahasiswi \/ karyawati putri\.\s*/i, "")
       .replace(/^Khusus mahasiswa \/ pria\.\s*/i, "")
