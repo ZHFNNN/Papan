@@ -9,7 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
-import { normalizeCategory, normalizeListingType } from '@/lib/property-input';
+import { normalizeCategory, normalizeListingType, resolveGenderTarget } from '@/lib/property-input';
 import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
@@ -77,7 +77,7 @@ export async function PATCH(
 
   const existing = await prisma.property.findUnique({
     where: { id },
-    select: { ownerId: true },
+    select: { ownerId: true, category: true, genderTarget: true },
   });
 
   if (!existing) {
@@ -90,7 +90,7 @@ export async function PATCH(
 
   const body = await req.json();
   const {
-    title, description, price, listingType, category, facilities, address, location, imageUrls,
+    title, description, price, listingType, category, genderTarget, facilities, address, location, imageUrls,
     discountPercentage, discountActiveUntil,
   } = body;
   const normalizedCategory    = normalizeCategory(category);
@@ -102,6 +102,12 @@ export async function PATCH(
 
   if (category !== undefined && !normalizedCategory) {
     return NextResponse.json({ message: 'Kategori properti tidak valid.' }, { status: 400 });
+  }
+
+  // Gender mengikuti kategori akhir: kosan wajib punya gender, selain kosan dikosongkan
+  const gender = resolveGenderTarget(normalizedCategory ?? existing.category, genderTarget, existing.genderTarget);
+  if (!gender.ok) {
+    return NextResponse.json({ message: gender.message }, { status: 400 });
   }
 
   // Validasi diskon
@@ -163,6 +169,7 @@ export async function PATCH(
     data: {
       title,
       ...(normalizedCategory ? { category: normalizedCategory } : {}),
+      genderTarget: gender.genderTarget,
       ...(typeof address === 'string' ? { address } : {}),
       ...(location
         ? { city, district, neighbourhood, latitude, longitude }

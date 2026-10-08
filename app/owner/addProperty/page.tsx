@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
+import { KOSAN_GENDER_OPTIONS, KOSAN_GENDER_REQUIRED_MESSAGE, type KosanGenderTarget } from '@/lib/property-input';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
@@ -44,15 +45,9 @@ const CATEGORY_OPTIONS: { value: PropertyCategory; label: string }[] = [
   { value: 'KOSAN', label: 'Kosan' },
 ];
 
-const KOS_GENDER_OPTIONS: { value: 'PUTRI' | 'PUTRA' | 'CAMPUR'; label: string }[] = [
-  { value: 'PUTRI', label: 'Kost Putri' },
-  { value: 'PUTRA', label: 'Kost Putra' },
-  { value: 'CAMPUR', label: 'Kost Campur' },
-];
-
 export default function AddPropertyPage() {
   const router = useRouter();
-  const [genderTarget, setGenderTarget] = useState<'PUTRI' | 'PUTRA' | 'CAMPUR' | ''>('');
+  const [genderTarget, setGenderTarget] = useState<KosanGenderTarget | ''>('');
   const [form, setForm] = useState<FormData>({
     title: '',
     address: '',
@@ -229,7 +224,7 @@ export default function AddPropertyPage() {
     if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
     if (form.category === 'KOSAN' && !genderTarget) {
-      newErrors.genderTarget = 'Tipe gender kosan wajib dipilih (Putri, Putra, atau Campur).';
+      newErrors.genderTarget = KOSAN_GENDER_REQUIRED_MESSAGE;
     }
     if (photos.length < MIN_PROPERTY_PHOTOS) {
       newErrors.photos = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (kamu baru memilih ${photos.length}).`;
@@ -376,7 +371,7 @@ export default function AddPropertyPage() {
                   Tipe Kos (Target Penghuni) <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <div className={styles.listingTypeGroup}>
-                  {KOS_GENDER_OPTIONS.map((opt) => (
+                  {KOSAN_GENDER_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"

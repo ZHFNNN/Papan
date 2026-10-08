@@ -7,7 +7,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
-import { normalizeCategory, normalizeGenderTarget, normalizeListingType } from '@/lib/property-input';
+import { normalizeCategory, normalizeListingType, resolveGenderTarget } from '@/lib/property-input';
 import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
@@ -39,12 +39,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Gender hanya untuk kosan; kategori lain disimpan null
-  const normalizedGenderTarget = normalizedCategory === 'KOSAN' ? normalizeGenderTarget(genderTarget) : null;
-  if (normalizedCategory === 'KOSAN' && !normalizedGenderTarget) {
-    return NextResponse.json(
-      { message: 'Tipe gender kosan wajib dipilih (Putra, Putri, atau Campur).' },
-      { status: 400 }
-    );
+  const gender = resolveGenderTarget(normalizedCategory, genderTarget, null);
+  if (!gender.ok) {
+    return NextResponse.json({ message: gender.message }, { status: 400 });
   }
 
   const latitude      = typeof location?.lat === 'number' ? location.lat : null;
@@ -80,7 +77,7 @@ export async function POST(req: NextRequest) {
       longitude,
       imageUrls:    photoUrls,
       description:  description ?? null,
-      genderTarget: normalizedGenderTarget,
+      genderTarget: gender.genderTarget,
       price:        Number(price),
       listingType:  normalizedListingType,
       facilities: {
