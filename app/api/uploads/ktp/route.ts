@@ -1,14 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { requireAuth } from "@/lib/require-user";
 import { cloudinary } from "@/lib/cloudinary";
+import { buildKycImagePublicId } from "@/lib/kyc-image";
 
 export const runtime = "nodejs";
 
-function uploadBufferToCloudinary(buffer: Buffer) {
-  return new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
+// Tipe `authenticated`: foto KTP tidak bisa dibuka lewat URL publik,
+// hanya lewat GET /api/kyc/image/ktp.
+function uploadBufferToCloudinary(buffer: Buffer, userId: string) {
+  return new Promise<string>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: "papan/ktp",
+        public_id: buildKycImagePublicId("ktp", userId, randomUUID()),
+        type: "authenticated",
         resource_type: "image"
       },
       (error, result) => {
@@ -17,10 +22,7 @@ function uploadBufferToCloudinary(buffer: Buffer) {
           return;
         }
 
-        resolve({
-          secure_url: result.secure_url,
-          public_id: result.public_id
-        });
+        resolve(result.public_id);
       }
     );
 
@@ -50,13 +52,10 @@ export async function POST(request: Request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const uploaded = await uploadBufferToCloudinary(buffer);
+  const ref = await uploadBufferToCloudinary(buffer, auth.session.user.id);
 
   return Response.json({
     message: "Upload berhasil",
-    data: {
-      url: uploaded.secure_url,
-      publicId: uploaded.public_id
-    }
+    data: { ref }
   });
 }

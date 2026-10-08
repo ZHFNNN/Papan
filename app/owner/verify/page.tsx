@@ -140,8 +140,11 @@ function UploadArea({ label, icon, subtext, url, uploading, error, onTrigger, on
 
 // ─── Upload Hook ──────────────────────────────────────────────────────────────
 
+// `ref` = referensi foto yang dikirim saat submit, `previewUrl` = gambar yang ditampilkan.
+// Foto KYC bersifat privat, jadi preview memakai file lokal atau /api/kyc/image/*.
 function useImageUpload(endpoint: string) {
-  const [url, setUrl] = useState("");
+  const [ref, setRef] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -155,9 +158,13 @@ function useImageUpload(endpoint: string) {
       const fd = new FormData();
       fd.append("file", file);
       const res  = await fetch(endpoint, { method: "POST", body: fd });
-      const data = await res.json() as { message?: string; data?: { url: string } };
+      const data = await res.json() as { message?: string; data?: { ref: string } };
       if (!res.ok) throw new Error(data.message ?? "Upload gagal");
-      setUrl(data.data?.url ?? "");
+      setRef(data.data?.ref ?? "");
+      setPreviewUrl((prev) => {
+        if (prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
       toast.success("Foto berhasil diunggah!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload gagal");
@@ -172,7 +179,7 @@ function useImageUpload(endpoint: string) {
     e.target.value = "";
   };
 
-  return { url, setUrl, uploading, trigger, handleFile, onChange, inputRef };
+  return { ref, setRef, previewUrl, setPreviewUrl, uploading, trigger, handleFile, onChange, inputRef };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -205,8 +212,10 @@ export default function VerifyPage() {
             province: s.province, cityOrRegency: s.cityOrRegency, district: s.district,
             rt: s.rt, rw: s.rw, postalCode: s.postalCode,
             ktpImageUrl: s.ktpImageUrl, selfieImageUrl: s.selfieImageUrl });
-          ktp.setUrl(s.ktpImageUrl);
-          selfie.setUrl(s.selfieImageUrl);
+          ktp.setRef(s.ktpImageUrl);
+          selfie.setRef(s.selfieImageUrl);
+          ktp.setPreviewUrl("/api/kyc/image/ktp");
+          selfie.setPreviewUrl("/api/kyc/image/selfie");
         }
       } catch { toast.error("Gagal memuat status verifikasi."); }
       finally  { setPageLoading(false); }
@@ -214,8 +223,8 @@ export default function VerifyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { setForm((p) => ({ ...p, ktpImageUrl:    ktp.url    })); }, [ktp.url]);
-  useEffect(() => { setForm((p) => ({ ...p, selfieImageUrl: selfie.url })); }, [selfie.url]);
+  useEffect(() => { setForm((p) => ({ ...p, ktpImageUrl:    ktp.ref    })); }, [ktp.ref]);
+  useEffect(() => { setForm((p) => ({ ...p, selfieImageUrl: selfie.ref })); }, [selfie.ref]);
 
   const setField = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((p) => ({ ...p, [field]: e.target.value }));
@@ -334,13 +343,13 @@ export default function VerifyPage() {
           <div className={styles.uploadRow}>
             <UploadArea
               label="Upload KTP" icon="ktp" subtext="Upload Foto KTP"
-              url={ktp.url} uploading={ktp.uploading} error={errors.ktpImageUrl}
+              url={ktp.previewUrl} uploading={ktp.uploading} error={errors.ktpImageUrl}
               onTrigger={ktp.trigger} onDrop={makeDrop(ktp.handleFile)}
               inputRef={ktp.inputRef} onChange={ktp.onChange}
             />
             <UploadArea
               label="Upload Foto Diri" icon="selfie" subtext={"Upload Foto Diri\nDengan KTP"}
-              url={selfie.url} uploading={selfie.uploading} error={errors.selfieImageUrl}
+              url={selfie.previewUrl} uploading={selfie.uploading} error={errors.selfieImageUrl}
               onTrigger={selfie.trigger} onDrop={makeDrop(selfie.handleFile)}
               inputRef={selfie.inputRef} onChange={selfie.onChange}
             />
