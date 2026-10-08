@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { signOut } from 'next-auth/react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -112,8 +113,10 @@ function DetailModal({ submission, onClose, onReview, reviewing }: ModalProps) {
               <div className={styles.photoBox}>
                 <span className={styles.photoLabel}>Foto KTP</span>
                 <img
-                  src={submission.ktpImageUrl}
+                  src={optimizeImage(submission.ktpImageUrl, IMAGE_WIDTH.card)}
                   alt="KTP"
+                  loading="lazy"
+                  decoding="async"
                   className={styles.photoThumb}
                   onClick={() => setActiveImg('ktp')}
                 />
@@ -121,8 +124,10 @@ function DetailModal({ submission, onClose, onReview, reviewing }: ModalProps) {
               <div className={styles.photoBox}>
                 <span className={styles.photoLabel}>Selfie + KTP</span>
                 <img
-                  src={submission.selfieImageUrl}
+                  src={optimizeImage(submission.selfieImageUrl, IMAGE_WIDTH.card)}
                   alt="Selfie"
+                  loading="lazy"
+                  decoding="async"
                   className={styles.photoThumb}
                   onClick={() => setActiveImg('selfie')}
                 />

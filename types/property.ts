@@ -16,6 +16,9 @@ export type ApiProperty = {
 	district?: string | null;
 	city?: string | null;
 	facilities?: ApiFacility[];
+	discountPercentage?: number | null;
+	discountActiveUntil?: string | null;
+	isDiscountActive?: boolean;
 };
 
 export type PropertyCardData = {
@@ -33,6 +36,9 @@ export type PropertyCardData = {
 	images: string[];
 	listingType: string;
 	createdAt?: string;
+	discountPercentage?: number | null;
+	discountActiveUntil?: string | null;
+	isDiscountActive?: boolean;
 };
 
 export type PropertySuggestion = {
@@ -40,6 +46,8 @@ export type PropertySuggestion = {
 	title: string;
 	lokasi: string;
 };
+
+export const MIN_PROPERTY_PHOTOS = 4;
 
 export const FALLBACK_PROPERTY_IMAGE =
 	'https://images.unsplash.com/photo-1494526585095-c41746248156?w=1200&q=80';
@@ -91,7 +99,31 @@ export function mapApiPropertyToCard(property: ApiProperty): PropertyCardData {
 		images,
 		listingType: normalizedListingType,
 		createdAt,
+		discountPercentage: property.discountPercentage ?? null,
+		discountActiveUntil: property.discountActiveUntil ?? null,
+		isDiscountActive: property.isDiscountActive ?? false,
 	};
+}
+
+export function calculateDiscountedPrice(price: string | number, discountPercentage: number | null | undefined): number {
+	const numericPrice = typeof price === 'string' ? Number(price) : price;
+	if (!Number.isFinite(numericPrice)) return 0;
+	if (!discountPercentage || discountPercentage <= 0 || discountPercentage >= 100) {
+		return Math.round(numericPrice);
+	}
+	return Math.round(numericPrice * (100 - discountPercentage) / 100);
+}
+
+export function isDiscountStillActive(
+	discountPercentage: number | null | undefined,
+	discountActiveUntil: string | null | undefined,
+	now: Date = new Date(),
+): boolean {
+	if (typeof discountPercentage !== 'number' || discountPercentage <= 0) return false;
+	if (!discountActiveUntil) return true;
+	const expiry = new Date(discountActiveUntil);
+	if (Number.isNaN(expiry.getTime())) return false;
+	return expiry > now;
 }
 
 export function mapApiPropertyToSuggestion(property: ApiProperty): PropertySuggestion {

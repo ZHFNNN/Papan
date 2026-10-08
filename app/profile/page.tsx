@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
+import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 
 const DEFAULT_AVATAR = '/images/ppdefault.png';
 
@@ -210,7 +211,8 @@ export default function ProfilePage() {
                         <img
                           alt="Profile"
                           className={styles.avatarImage}
-                          src={avatarSrc}
+                          src={optimizeImage(avatarSrc, IMAGE_WIDTH.thumb * 2)}
+                          decoding="async"
                           onError={() => setAvatarSrc(DEFAULT_AVATAR)}
                         />
                         <div className={styles.avatarOverlay}>

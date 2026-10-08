@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
@@ -95,6 +96,10 @@ export async function GET(
     {
       ...property,
       category: categoryRow[0]?.category ?? null,
+      discountPercentage: property.discountPercentage ?? null,
+      discountActiveUntil: property.discountActiveUntil
+        ? property.discountActiveUntil.toISOString()
+        : null,
     },
     {
       headers: {
@@ -129,7 +134,10 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { title, description, price, listingType, category, facilities, address, location, imageUrls } = body;
+  const {
+    title, description, price, listingType, category, facilities, address, location, imageUrls,
+    discountPercentage, discountActiveUntil,
+  } = body;
   const normalizedCategory    = normalizeCategory(category);
   const normalizedListingType = normalizeListingType(listingType);
 
@@ -139,6 +147,39 @@ export async function PATCH(
 
   if (category !== undefined && !normalizedCategory) {
     return NextResponse.json({ message: 'Kategori properti tidak valid.' }, { status: 400 });
+  }
+
+  // Validasi diskon
+  let normalizedDiscount: number | null | undefined = undefined;
+  if (discountPercentage !== undefined) {
+    if (discountPercentage === null || discountPercentage === 0 || discountPercentage === '') {
+      normalizedDiscount = null;
+    } else {
+      const pct = Number(discountPercentage);
+      if (!Number.isFinite(pct) || pct < 1 || pct > 99 || !Number.isInteger(pct)) {
+        return NextResponse.json(
+          { message: 'Diskon harus berupa bilangan bulat antara 1-99.' },
+          { status: 400 }
+        );
+      }
+      normalizedDiscount = pct;
+    }
+  }
+
+  let normalizedDiscountUntil: Date | null | undefined = undefined;
+  if (discountActiveUntil !== undefined) {
+    if (discountActiveUntil === null || discountActiveUntil === '') {
+      normalizedDiscountUntil = null;
+    } else {
+      const parsed = new Date(discountActiveUntil);
+      if (Number.isNaN(parsed.getTime())) {
+        return NextResponse.json(
+          { message: 'Format tanggal diskon tidak valid.' },
+          { status: 400 }
+        );
+      }
+      normalizedDiscountUntil = parsed;
+    }
   }
 
   const latitude      = typeof location?.lat === 'number' ? location.lat : null;
@@ -151,6 +192,13 @@ export async function PATCH(
   const photoUrls = Array.isArray(imageUrls)
     ? imageUrls.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0)
     : null;
+
+  if (photoUrls && photoUrls.length < MIN_PROPERTY_PHOTOS) {
+    return NextResponse.json(
+      { message: `Minimal ${MIN_PROPERTY_PHOTOS} foto properti.` },
+      { status: 400 }
+    );
+  }
 
   // Resolve facilities — support code preset + nama custom
   const facilityRecords = facilityItems ? await resolveFacilityRecords(facilityItems) : [];
@@ -167,6 +215,8 @@ export async function PATCH(
       description:  description ?? null,
       price:        Number(price),
       listingType:  normalizedListingType,
+      ...(normalizedDiscount !== undefined ? { discountPercentage: normalizedDiscount } : {}),
+      ...(normalizedDiscountUntil !== undefined ? { discountActiveUntil: normalizedDiscountUntil } : {}),
       ...(facilityItems
         ? {
             facilities: {

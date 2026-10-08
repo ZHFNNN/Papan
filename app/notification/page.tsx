@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from './page.module.css';
 
-type NotifType = 'bookmark' | 'payment' | 'general';
+type NotifType = 'bookmark' | 'payment' | 'promo' | 'general';
 
 interface Notification {
   id: string;
@@ -105,8 +105,17 @@ export default function NotificationPage() {
   const getType = (type: string): NotifType => {
     if (type === 'BOOKMARK') return 'bookmark';
     if (type === 'PAYMENT') return 'payment';
+    if (type === 'PROMO_SUGGESTION') return 'promo';
     return 'general';
   };
+
+  // Promo icon (tag)
+  const PromoIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.59 13.41L13.42 20.58a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+      <line x1="7" y1="7" x2="7.01" y2="7"/>
+    </svg>
+  );
 
   return (
     <div className={styles.page}>
@@ -144,6 +153,16 @@ export default function NotificationPage() {
               notifications.map((notif, index) => {
                 const type = getType(notif.type);
 
+                const iconElement =
+                  type === 'bookmark' ? <BookmarkIcon /> :
+                  type === 'payment'  ? <PaymentIcon /> :
+                  type === 'promo'    ? <PromoIcon /> :
+                  <BookmarkIcon />;
+                const iconClassName =
+                  type === 'bookmark' ? styles.iconBookmark :
+                  type === 'payment'  ? styles.iconPayment :
+                  styles.iconBookmark; // fallback styling
+
                 return (
                   <div key={notif.id}>
                     <div
@@ -152,13 +171,10 @@ export default function NotificationPage() {
                     >
                       {/* ICON */}
                       <div
-                        className={`${styles.iconWrap} ${
-                          type === 'bookmark'
-                            ? styles.iconBookmark
-                            : styles.iconPayment
-                        }`}
+                        className={`${styles.iconWrap} ${iconClassName}`}
+                        style={type === 'promo' ? { background: '#dc2626', color: '#fff' } : undefined}
                       >
-                        {type === 'bookmark' ? <BookmarkIcon /> : <PaymentIcon />}
+                        {iconElement}
                       </div>
 
                       {/* CONTENT */}
@@ -167,6 +183,32 @@ export default function NotificationPage() {
                         <p className={styles.notifDesc}>
                           {notif.message}
                         </p>
+                        {type === 'promo' && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markRead(notif);
+                              router.push('/owner/dashboard');
+                            }}
+                            style={{
+                              marginTop: 10,
+                              padding: '8px 16px',
+                              background: '#dc2626',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 8,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            🏷️ Atur Promo Sekarang
+                          </button>
+                        )}
                       </div>
 
                       {/* META */}

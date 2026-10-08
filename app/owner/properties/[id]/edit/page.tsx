@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from '@/app/owner/addProperty/page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -23,9 +24,11 @@ type FormData = {
   listingType: ListingType;
   category: PropertyCategory;
   facilities: string[];
+  discountPercentage: string;       // string supaya mudah diinput, divalidasi sebelum kirim
+  discountActiveUntil: string;      // YYYY-MM-DD dari <input type="date"> atau kosong
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
+type FormErrors = Partial<Record<keyof FormData | 'photos', string>>;
 
 type FacilityOption = {
   code: string;
@@ -47,6 +50,8 @@ type PropertyResponse = {
   category?: string;
   imageUrls?: string[];
   facilities?: Array<{ facility?: { code?: string; name?: string } }>;
+  discountPercentage?: number | null;
+  discountActiveUntil?: string | null;
 };
 
 const LISTING_TYPE_OPTIONS: { value: ListingType; label: string }[] = [
@@ -106,6 +111,7 @@ export default function EditPropertyPage() {
     title: '', address: '', locationLat: null, locationLng: null,
     locationCity: '', locationDistrict: '', locationNeighbourhood: '',
     price: '', description: '', listingType: '', category: '', facilities: [],
+    discountPercentage: '', discountActiveUntil: '',
   });
 
   const [errors, setErrors]                           = useState<FormErrors>({});
@@ -222,6 +228,12 @@ export default function EditPropertyPage() {
             ...allFacilityCodes.filter((c) => presetCodes.has(c)),
             ...loadedCustomNames,
           ],
+          discountPercentage: typeof data.discountPercentage === 'number' && data.discountPercentage > 0
+            ? String(data.discountPercentage)
+            : '',
+          discountActiveUntil: data.discountActiveUntil
+            ? data.discountActiveUntil.slice(0, 10)  // ISO → YYYY-MM-DD untuk <input type="date">
+            : '',
         });
         setExistingImageUrls(Array.isArray(data.imageUrls) ? data.imageUrls : []);
       } catch (err: any) {
@@ -293,6 +305,7 @@ export default function EditPropertyPage() {
     if (!valid.length) return;
     setNewPhotos((prev)        => [...prev, ...valid]);
     setNewPhotoPreviews((prev) => [...prev, ...valid.map((f) => URL.createObjectURL(f))]);
+    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => appendPhotoFiles(Array.from(e.target.files ?? []));
@@ -320,8 +333,26 @@ export default function EditPropertyPage() {
     if (!form.description.trim()) next.description = 'Deskripsi wajib diisi.';
     if (!form.listingType)        next.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category)           next.category    = 'Kategori properti wajib dipilih.';
-    if (existingImageUrls.length + newPhotos.length === 0)
-                                  next.facilities  = 'Minimal harus ada 1 foto properti.';
+    if (existingImageUrls.length + newPhotos.length < MIN_PROPERTY_PHOTOS)
+                                  next.photos      = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (saat ini ${existingImageUrls.length + newPhotos.length}).`;
+
+    // Validasi diskon — opsional
+    const discRaw = form.discountPercentage.trim();
+    if (discRaw !== '') {
+      const pct = Number(discRaw);
+      if (!Number.isFinite(pct) || !Number.isInteger(pct) || pct < 1 || pct > 99) {
+        next.discountPercentage = 'Diskon harus bilangan bulat 1-99.';
+      }
+    }
+    if (form.discountActiveUntil.trim() !== '') {
+      const expiry = new Date(form.discountActiveUntil);
+      if (Number.isNaN(expiry.getTime())) {
+        next.discountActiveUntil = 'Format tanggal tidak valid.';
+      } else if (expiry < new Date(new Date().setHours(0, 0, 0, 0))) {
+        next.discountActiveUntil = 'Tanggal diskon tidak boleh di masa lalu.';
+      }
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -338,6 +369,12 @@ export default function EditPropertyPage() {
     try {
       const uploadedUrls = newPhotos.length > 0 ? await uploadPhotosToCloudinary(newPhotos) : [];
       const allImageUrls = [...existingImageUrls, ...uploadedUrls];
+
+      const discountRaw = form.discountPercentage.trim();
+      const discountPctValue = discountRaw === '' ? null : Number(discountRaw);
+      const discountUntilValue = form.discountActiveUntil.trim() === ''
+        ? null
+        : new Date(form.discountActiveUntil).toISOString();
 
       const res = await fetch(`/api/owner/properties/${propertyId}`, {
         method:  'PATCH',
@@ -358,6 +395,8 @@ export default function EditPropertyPage() {
           },
           imageUrls:  allImageUrls,
           facilities: form.facilities,
+          discountPercentage:  discountPctValue,
+          discountActiveUntil: discountUntilValue,
         }),
       });
 
@@ -464,6 +503,51 @@ export default function EditPropertyPage() {
             {errors.price && <p className={styles.errorText}>{errors.price}</p>}
           </div>
 
+          {/* === Promo / Diskon (opsional) ============================= */}
+          <div id="discount" className={styles.fieldGroup}>
+            <label className={styles.label}>
+              Diskon Promo <span style={{ fontWeight: 400, color: '#666' }}>(opsional)</span>
+            </label>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 160px' }}>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={99}
+                    step={1}
+                    className={`${styles.input} ${errors.discountPercentage ? styles.inputError : ''}`}
+                    value={form.discountPercentage}
+                    onChange={(e) => handleChange('discountPercentage', e.target.value)}
+                    placeholder="0"
+                    style={{ paddingRight: 32 }}
+                  />
+                  <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }}>%</span>
+                </div>
+                {errors.discountPercentage && <p className={styles.errorText}>{errors.discountPercentage}</p>}
+              </div>
+              <div style={{ flex: '1 1 200px' }}>
+                <input
+                  type="date"
+                  className={`${styles.input} ${errors.discountActiveUntil ? styles.inputError : ''}`}
+                  value={form.discountActiveUntil}
+                  onChange={(e) => handleChange('discountActiveUntil', e.target.value)}
+                />
+                {errors.discountActiveUntil && <p className={styles.errorText}>{errors.discountActiveUntil}</p>}
+              </div>
+            </div>
+            {form.discountPercentage && Number(form.discountPercentage) > 0 && form.price && (
+              <p style={{ marginTop: 8, fontSize: 13, color: '#0a7f3f' }}>
+                Setelah diskon: Rp {Math.round(Number(form.price.replace(/[^0-9]/g, '')) * (100 - Number(form.discountPercentage)) / 100).toLocaleString('id-ID')}
+                {form.discountActiveUntil && ` (berlaku sampai ${new Date(form.discountActiveUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })})`}
+              </p>
+            )}
+            <p style={{ marginTop: 6, fontSize: 12, color: '#888' }}>
+              Isi diskon dalam persen (1-99). Tanggal berakhir opsional — kosongkan jika promo berlaku tanpa batas waktu.
+              Untuk menonaktifkan promo, kosongkan kolom persen.
+            </p>
+          </div>
+
           <div className={styles.fieldGroup}>
             <label className={styles.label}>Deskripsi</label>
             <textarea
@@ -551,7 +635,7 @@ export default function EditPropertyPage() {
                   <path d="m21 15-5-5L5 21" />
                 </svg>
                 <p className={styles.uploadText}>Upload Foto Properti</p>
-                <p className={styles.uploadHint}>Klik atau drag & drop</p>
+                <p className={styles.uploadHint}>Klik atau drag & drop (minimal {MIN_PROPERTY_PHOTOS} foto)</p>
               </div>
             ) : (
               <div className={styles.photoGrid}>
@@ -575,8 +659,9 @@ export default function EditPropertyPage() {
           <p className={styles.uploadCount}>
             {existingImageUrls.length + newPhotos.length > 0
               ? `${existingImageUrls.length + newPhotos.length} foto dipilih`
-              : 'Belum ada foto'}
+              : 'Belum ada foto'} (minimal {MIN_PROPERTY_PHOTOS})
           </p>
+          {errors.photos && <p className={styles.errorText}>{errors.photos}</p>}
         </div>
       </div>
 

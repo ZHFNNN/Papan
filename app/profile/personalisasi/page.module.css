@@ -666,7 +666,7 @@ display: flex;
 }
 
 .skipBtn {
-  width: 160px;
+  width: clamp(110px, 30%, 160px);
   flex-shrink: 0;
   padding: 16px;
   border-radius: 30px;
@@ -751,4 +751,16 @@ display: flex;
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+/* ── Responsive action buttons ── */
+@media (max-width: 480px) {
+  .actions {
+    gap: 10px;
+  }
+
+  .skipBtn,
+  .submitBtn {
+    padding: 12px;
+    font-size: 14px;
+  }
 }

@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
@@ -101,6 +102,13 @@ export async function POST(req: NextRequest) {
   const photoUrls = Array.isArray(imageUrls)
     ? imageUrls.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0)
     : [];
+
+  if (photoUrls.length < MIN_PROPERTY_PHOTOS) {
+    return NextResponse.json(
+      { message: `Minimal ${MIN_PROPERTY_PHOTOS} foto properti.` },
+      { status: 400 }
+    );
+  }
 
   const facilityRecords = await resolveFacilityRecords(facilityInputs);
 

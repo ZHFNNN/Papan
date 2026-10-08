@@ -36,13 +36,25 @@
       return NextResponse.json({ message: 'Properti tidak ditemukan.' }, { status: 404 });
     }
 
+    const now = new Date();
+    const isDiscountActive =
+      typeof property.discountPercentage === 'number' &&
+      property.discountPercentage > 0 &&
+      (property.discountActiveUntil === null ||
+        (property.discountActiveUntil && property.discountActiveUntil > now));
+
     return NextResponse.json({
       message: 'Properti berhasil diambil.',
       data: {
         ...property,
         price: property.price.toString(),
-        lat: property.latitude,   
-        lng: property.longitude,  
+        lat: property.latitude,
+        lng: property.longitude,
+        discountPercentage: property.discountPercentage ?? null,
+        discountActiveUntil: property.discountActiveUntil
+          ? property.discountActiveUntil.toISOString()
+          : null,
+        isDiscountActive: Boolean(isDiscountActive),
         facilities: property.facilities.map((entry) => ({
           code: entry.facility.code,
           name: entry.facility.name,
