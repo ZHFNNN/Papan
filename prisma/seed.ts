@@ -87,10 +87,28 @@ function buildFinalProperties() {
         if (lType === "RENT" && cat !== "KOSAN") basePrice = 6_000_000;
         const price = basePrice + (Math.floor(Math.random() * 30) * 100_000);
 
+        let title = `${cat.charAt(0) + cat.slice(1).toLowerCase()} di ${neighbourhood} #${globalCount}`;
+        let description = getRandomDesc();
+        let genderTarget: string | null = null;
+
+        // Variasikan tipe kosan berdasarkan target penghuni (gender)
+        if (cat === "KOSAN") {
+          const kosTypes: { target: 'PUTRI' | 'PUTRA' | 'CAMPUR'; note: string }[] = [
+            { target: "PUTRI", note: "Khusus mahasiswi / karyawati putri." },
+            { target: "PUTRA", note: "Khusus mahasiswa / pria." },
+            { target: "CAMPUR", note: "Bisa untuk putra maupun putri / pasutri." },
+          ];
+          const chosen = kosTypes[i % kosTypes.length];
+          title = `Kosan di ${neighbourhood} #${globalCount}`;
+          description = `${chosen.note} ${description}`;
+          genderTarget = chosen.target;
+        }
+
         result.push({
-          title: `${cat.charAt(0) + cat.slice(1).toLowerCase()} di ${neighbourhood} #${globalCount}`,
+          title,
           category: cat,
-          description: getRandomDesc(),
+          genderTarget,
+          description,
           price,
           listingType: lType,
           facilityCodes,
@@ -141,6 +159,7 @@ async function main() {
         longitude: item.longitude,
         imageUrls: item.imageUrls,
         description: item.description,
+        genderTarget: item.genderTarget,
         price: item.price,
         listingType: item.listingType,
         category: item.category,

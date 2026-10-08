@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-user";
 import { personalizationBooleanCodes } from "@/lib/dss/facility-mapping";
-import { resolveCriteriaWeights, scoreProperty } from "@/lib/dss/scoring";
+import { normalizeGenderScore, resolveCriteriaWeights, scoreProperty } from "@/lib/dss/scoring";
 
 export async function GET() {
   const auth = await requireAuth();
@@ -17,6 +17,7 @@ export async function GET() {
       where: { userId },
       select: {
         location: true,
+        gender: true,
         budgetMin: true,
         budgetMax: true,
         prefFurnished: true,
@@ -30,7 +31,8 @@ export async function GET() {
     }),
     prisma.userPreferenceFacility.findMany({
       where: { userId },
-      include: {
+      select: {
+        isRequired: true,
         facility: {
           select: {
             code: true,
@@ -61,6 +63,8 @@ export async function GET() {
     select: {
       id: true,
       title: true,
+      category: true,
+      genderTarget: true,
       address: true,
       city: true,
       district: true,
@@ -119,9 +123,21 @@ export async function GET() {
   const selectedFacilityCodes = relationalPreferredCodes.length > 0 ? relationalPreferredCodes : fallbackPreferredCodes;
   const { weights, source: weightsSource } = resolveCriteriaWeights(criteriaWeightRows);
 
-  const scored = properties.map((property) => {
+  const scoredCandidates = properties.map((property) => {
     const priceNumber = Number(property.price);
     const text = `${property.title} ${property.description ?? ""} ${property.address ?? ""} ${property.neighbourhood ?? ""} ${property.district ?? ""} ${property.city ?? ""}`.toLowerCase();
+    // Cek kecocokan gender (khusus KOSAN)
+    const genderScore = normalizeGenderScore(
+      personalization.gender,
+      property.genderTarget,
+      property.category,
+      `${property.title} ${property.description ?? ""}`
+    );
+
+    // Jika kosan dilarang untuk gender pengguna (skor 0), eliminasi dari rekomendasi
+    if (genderScore === 0) {
+      return null;
+    }
     const propertyFacilityCodes = property.facilities.map((item) => item.facility.code);
 
     const result = scoreProperty(
@@ -148,6 +164,8 @@ export async function GET() {
     return {
       id: property.id,
       title: property.title,
+      category: property.category,
+      genderTarget: property.genderTarget,
       listingType: property.listingType,
       coverImageUrl: property.imageUrls[0] ?? null,
       images: property.imageUrls,
@@ -170,6 +188,7 @@ export async function GET() {
         budgetScore: Number(result.budgetScore.toFixed(4)),
         locationScore: Number(result.locationScore.toFixed(4)),
         facilityScore: Number(result.facilityScore.toFixed(4)),
+        genderScore: Number(genderScore.toFixed(4)),
         matchedFacilityCodes: result.matchedFacilityCodes,
         selectedFacilityCodes,
         propertyFacilityCodes,
@@ -177,6 +196,8 @@ export async function GET() {
       },
     };
   });
+
+  const scored = scoredCandidates.filter((item): item is NonNullable<typeof item> => item !== null);
 
   scored.sort((a, b) => {
     if (a.isBoosted !== b.isBoosted) {

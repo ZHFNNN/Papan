@@ -62,17 +62,76 @@ export function normalizeBudgetScore(
     return 0.5;
   }
 
-  if (price >= min && price <= max) {
+  // Harga lebih murah atau sama dengan budget maksimum bernilai sempurna (1.0)
+  if (price <= max) {
     return 1;
-  }
-
-  if (price < min) {
-    if (min <= 0) return 0;
-    return Math.max(0, 1 - (min - price) / min);
   }
 
   if (max <= 0) return 0;
   return Math.max(0, 1 - (price - max) / max);
+}
+
+export function normalizeGenderScore(
+  userGender: string | null | undefined,
+  genderTargetOrText?: string | null,
+  category?: string,
+  fallbackText?: string,
+): number {
+  // Gender hanya berlaku khusus untuk kategori KOSAN
+  if (category && category !== "KOSAN") {
+    return 1;
+  }
+
+  if (!userGender || !userGender.trim()) {
+    return 1;
+  }
+
+  const normalizedUser = userGender.toLowerCase().trim();
+  const isFemaleUser =
+    normalizedUser === "perempuan" || normalizedUser === "wanita" || normalizedUser === "female";
+  const isMaleUser =
+    normalizedUser === "laki-laki" || normalizedUser === "pria" || normalizedUser === "male";
+
+  // Cek jika nilai berupa enum PUTRI / PUTRA / CAMPUR
+  const upperVal = (genderTargetOrText ?? "").trim().toUpperCase();
+  if (upperVal === "CAMPUR") return 0.8;
+  if (upperVal === "PUTRI") {
+    if (isFemaleUser) return 1;
+    if (isMaleUser) return 0;
+    return 0.9;
+  }
+  if (upperVal === "PUTRA") {
+    if (isMaleUser) return 1;
+    if (isFemaleUser) return 0;
+    return 0.9;
+  }
+
+  // Jika bukan enum exact, scan teks (dari genderTargetOrText maupun fallbackText)
+  const textToScan = `${genderTargetOrText ?? ""} ${fallbackText ?? ""}`.toLowerCase();
+  const isPutriKos =
+    textToScan.includes("putri") || textToScan.includes("wanita") || textToScan.includes("cewek");
+  const isPutraKos =
+    textToScan.includes("putra") || textToScan.includes("pria") || textToScan.includes("cowok");
+  const isCampurKos =
+    textToScan.includes("campur") || textToScan.includes("pasutri") || textToScan.includes("bebas");
+
+  if (isCampurKos) {
+    return 0.8;
+  }
+
+  if (isFemaleUser) {
+    if (isPutriKos) return 1;
+    if (isPutraKos) return 0;
+    return 0.9;
+  }
+
+  if (isMaleUser) {
+    if (isPutraKos) return 1;
+    if (isPutriKos) return 0;
+    return 0.9;
+  }
+
+  return 1;
 }
 
 export function normalizeLocationScore(

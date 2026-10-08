@@ -11,6 +11,7 @@ import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
 const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
+const ALLOWED_GENDER_TARGETS = ['PUTRA', 'PUTRI', 'CAMPUR'] as const;
 
 function normalizeCategory(category: unknown): (typeof ALLOWED_CATEGORIES)[number] | null {
   if (typeof category !== 'string') return null;
@@ -69,12 +70,26 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { title, description, price, listingType, category, address, facilities, location, imageUrls } = body;
+  const { title, description, price, listingType, category, genderTarget, address, facilities, location, imageUrls } = body;
   const normalizedCategory = normalizeCategory(category);
   const normalizedListingType = normalizeListingType(listingType);
 
   if (!title || !price || !normalizedListingType || !address || !normalizedCategory) {
     return NextResponse.json({ message: 'Data tidak lengkap.' }, { status: 400 });
+  }
+
+  let normalizedGenderTarget: (typeof ALLOWED_GENDER_TARGETS)[number] | null = null;
+  if (normalizedCategory === 'KOSAN') {
+    if (
+      typeof genderTarget !== 'string' ||
+      !ALLOWED_GENDER_TARGETS.includes(genderTarget.toUpperCase() as (typeof ALLOWED_GENDER_TARGETS)[number])
+    ) {
+      return NextResponse.json(
+        { message: 'Tipe gender kosan wajib dipilih (Putra, Putri, atau Campur).' },
+        { status: 400 }
+      );
+    }
+    normalizedGenderTarget = genderTarget.toUpperCase() as (typeof ALLOWED_GENDER_TARGETS)[number];
   }
 
   const latitude      = typeof location?.lat === 'number' ? location.lat : null;
@@ -109,6 +124,7 @@ export async function POST(req: NextRequest) {
       longitude,
       imageUrls:    photoUrls,
       description:  description ?? null,
+      genderTarget: normalizedGenderTarget,
       price:        Number(price),
       listingType:  normalizedListingType,
       facilities: {
