@@ -6,53 +6,12 @@
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
+import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
+import { normalizeCategory, normalizeListingType } from '@/lib/property-input';
 import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
-
-const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
-const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
-type CategoryRow = { category: 'RUMAH' | 'APARTEMEN' | 'KOSAN' | null };
-
-function normalizeCategory(category: unknown): (typeof ALLOWED_CATEGORIES)[number] | null {
-  if (typeof category !== 'string') return null;
-  const normalized = category.trim().toUpperCase();
-  return ALLOWED_CATEGORIES.includes(normalized as (typeof ALLOWED_CATEGORIES)[number])
-    ? (normalized as (typeof ALLOWED_CATEGORIES)[number])
-    : null;
-}
-
-function normalizeListingType(listingType: unknown): (typeof ALLOWED_LISTING_TYPES)[number] | null {
-  if (typeof listingType !== 'string') return null;
-  const normalized = listingType.trim().toUpperCase();
-  if (normalized === 'SELL') return 'JUAL';
-  if (normalized === 'RENT' || normalized === 'KOSAN') return 'SEWA';
-  return ALLOWED_LISTING_TYPES.includes(normalized as (typeof ALLOWED_LISTING_TYPES)[number])
-    ? (normalized as (typeof ALLOWED_LISTING_TYPES)[number])
-    : null;
-}
-
-// Support code preset maupun nama custom (upsert)
-async function resolveFacilityRecords(inputs: string[]): Promise<{ id: string }[]> {
-  return Promise.all(
-    inputs.map(async (input) => {
-      // Cek apakah ini code preset yang sudah ada di DB
-      const byCode = await prisma.facility.findUnique({ where: { code: input } });
-      if (byCode) return { id: byCode.id };
-
-      // Anggap nama custom — upsert by generated code
-      const code = `custom_${input.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
-      const result = await prisma.facility.upsert({
-        where: { code },
-        update: {},
-        create: { code, name: input },
-      });
-      return { id: result.id };
-    })
-  );
-}
 
 export async function GET(
   req: NextRequest,
@@ -89,14 +48,9 @@ export async function GET(
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
-  const categoryRow = await prisma.$queryRaw<CategoryRow[]>(
-    Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
-  );
-
   return NextResponse.json(
     {
       ...property,
-      category: categoryRow[0]?.category ?? null,
       discountPercentage: property.discountPercentage ?? null,
       discountActiveUntil: property.discountActiveUntil
         ? property.discountActiveUntil.toISOString()
@@ -208,6 +162,7 @@ export async function PATCH(
     where: { id },
     data: {
       title,
+      ...(normalizedCategory ? { category: normalizedCategory } : {}),
       ...(typeof address === 'string' ? { address } : {}),
       ...(location
         ? { city, district, neighbourhood, latitude, longitude }
@@ -241,24 +196,11 @@ export async function PATCH(
     },
   });
 
-  if (category !== undefined && normalizedCategory) {
-    await prisma.$executeRaw(
-      Prisma.sql`UPDATE "Property" SET "category" = ${normalizedCategory}::"PropertyCategory" WHERE "id" = ${id}`,
-    );
-  }
-
   // Harga, diskon, foto, dan kategori tampil di daftar properti publik
   invalidatePropertyListCache();
 
-  const categoryRow = await prisma.$queryRaw<CategoryRow[]>(
-    Prisma.sql`SELECT "category" FROM "Property" WHERE "id" = ${id} LIMIT 1`,
-  );
-
   return NextResponse.json(
-    {
-      ...updated,
-      category: categoryRow[0]?.category ?? null,
-    },
+    updated,
     {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
