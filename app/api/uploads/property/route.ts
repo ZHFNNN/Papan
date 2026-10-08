@@ -1,32 +1,8 @@
-import { Readable } from 'node:stream';
 import { requireAuth } from '@/lib/require-user';
-import { cloudinary } from '@/lib/cloudinary';
+import { uploadImageBuffer } from '@/lib/cloudinary';
+import { MB, readImageFile } from '@/lib/upload';
 
 export const runtime = 'nodejs';
-
-function uploadBufferToCloudinary(buffer: Buffer) {
-  return new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'papan/properties',
-        resource_type: 'image',
-      },
-      (error, result) => {
-        if (error || !result) {
-          reject(error || new Error('Cloudinary upload failed'));
-          return;
-        }
-
-        resolve({
-          secure_url: result.secure_url,
-          public_id: result.public_id,
-        });
-      }
-    );
-
-    Readable.from(buffer).pipe(uploadStream);
-  });
-}
 
 export async function POST(request: Request) {
   const auth = await requireAuth();
@@ -34,23 +10,10 @@ export async function POST(request: Request) {
     return auth.error;
   }
 
-  const formData = await request.formData();
-  const file = formData.get('file');
+  const image = await readImageFile(request, { label: 'File foto properti', maxBytes: 8 * MB });
+  if ('error' in image) return image.error;
 
-  if (!(file instanceof File)) {
-    return Response.json({ message: 'File foto properti wajib diupload' }, { status: 400 });
-  }
-
-  if (!file.type.startsWith('image/')) {
-    return Response.json({ message: 'File harus berupa gambar' }, { status: 400 });
-  }
-
-  if (file.size > 8 * 1024 * 1024) {
-    return Response.json({ message: 'Ukuran file maksimal 8MB' }, { status: 400 });
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const uploaded = await uploadBufferToCloudinary(buffer);
+  const uploaded = await uploadImageBuffer(image.buffer, { folder: 'papan/properties' });
 
   return Response.json({
     message: 'Upload berhasil',

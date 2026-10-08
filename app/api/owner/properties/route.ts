@@ -4,53 +4,12 @@
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
+import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
+import { normalizeCategory, normalizeGenderTarget, normalizeListingType } from '@/lib/property-input';
 import { invalidatePropertyListCache } from '@/lib/property-list-cache';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
-
-const ALLOWED_CATEGORIES = ['RUMAH', 'APARTEMEN', 'KOSAN'] as const;
-const ALLOWED_LISTING_TYPES = ['JUAL', 'SEWA'] as const;
-const ALLOWED_GENDER_TARGETS = ['PUTRA', 'PUTRI', 'CAMPUR'] as const;
-
-function normalizeCategory(category: unknown): (typeof ALLOWED_CATEGORIES)[number] | null {
-  if (typeof category !== 'string') return null;
-  const normalized = category.trim().toUpperCase();
-  return ALLOWED_CATEGORIES.includes(normalized as (typeof ALLOWED_CATEGORIES)[number])
-    ? (normalized as (typeof ALLOWED_CATEGORIES)[number])
-    : null;
-}
-
-function normalizeListingType(listingType: unknown): (typeof ALLOWED_LISTING_TYPES)[number] | null {
-  if (typeof listingType !== 'string') return null;
-  const normalized = listingType.trim().toUpperCase();
-  if (normalized === 'SELL') return 'JUAL';
-  if (normalized === 'RENT' || normalized === 'KOSAN') return 'SEWA';
-  return ALLOWED_LISTING_TYPES.includes(normalized as (typeof ALLOWED_LISTING_TYPES)[number])
-    ? (normalized as (typeof ALLOWED_LISTING_TYPES)[number])
-    : null;
-}
-
-// Resolve facility — support code preset maupun nama custom (upsert)
-async function resolveFacilityRecords(inputs: string[]): Promise<{ id: string }[]> {
-  return Promise.all(
-    inputs.map(async (input) => {
-      // Cek apakah ini code preset yang sudah ada di DB
-      const byCode = await prisma.facility.findUnique({ where: { code: input } });
-      if (byCode) return { id: byCode.id };
-
-      // Cek apakah nama ini sudah ada (custom sebelumnya)
-      const code = `custom_${input.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
-      const result = await prisma.facility.upsert({
-        where: { code },
-        update: {},
-        create: { code, name: input },
-      });
-      return { id: result.id };
-    })
-  );
-}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -79,18 +38,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Data tidak lengkap.' }, { status: 400 });
   }
 
-  let normalizedGenderTarget: (typeof ALLOWED_GENDER_TARGETS)[number] | null = null;
-  if (normalizedCategory === 'KOSAN') {
-    if (
-      typeof genderTarget !== 'string' ||
-      !ALLOWED_GENDER_TARGETS.includes(genderTarget.toUpperCase() as (typeof ALLOWED_GENDER_TARGETS)[number])
-    ) {
-      return NextResponse.json(
-        { message: 'Tipe gender kosan wajib dipilih (Putra, Putri, atau Campur).' },
-        { status: 400 }
-      );
-    }
-    normalizedGenderTarget = genderTarget.toUpperCase() as (typeof ALLOWED_GENDER_TARGETS)[number];
+  // Gender hanya untuk kosan; kategori lain disimpan null
+  const normalizedGenderTarget = normalizedCategory === 'KOSAN' ? normalizeGenderTarget(genderTarget) : null;
+  if (normalizedCategory === 'KOSAN' && !normalizedGenderTarget) {
+    return NextResponse.json(
+      { message: 'Tipe gender kosan wajib dipilih (Putra, Putri, atau Campur).' },
+      { status: 400 }
+    );
   }
 
   const latitude      = typeof location?.lat === 'number' ? location.lat : null;
@@ -117,6 +71,7 @@ export async function POST(req: NextRequest) {
     data: {
       ownerId:       session.user.id,
       title,
+      category:      normalizedCategory,
       address,
       city,
       district,
@@ -143,10 +98,6 @@ export async function POST(req: NextRequest) {
       },
     },
   });
-
-  await prisma.$executeRaw(
-    Prisma.sql`UPDATE "Property" SET "category" = ${normalizedCategory}::"PropertyCategory" WHERE "id" = ${property.id}`,
-  );
 
   invalidatePropertyListCache();
   return NextResponse.json(property, { status: 201 });
