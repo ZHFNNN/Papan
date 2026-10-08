@@ -24,8 +24,9 @@ export function normalizeBudgetScore(
 
 export function normalizeGenderScore(
   userGender: string | null | undefined,
-  text: string,
+  genderTargetOrText?: string | null,
   category?: string,
+  fallbackText?: string,
 ): number {
   // Gender hanya berlaku khusus untuk kategori KOSAN
   if (category && category !== "KOSAN") {
@@ -36,31 +37,49 @@ export function normalizeGenderScore(
     return 1;
   }
 
-  const lowerText = text.toLowerCase();
   const normalizedUser = userGender.toLowerCase().trim();
+  const isFemaleUser =
+    normalizedUser === "perempuan" || normalizedUser === "wanita" || normalizedUser === "female";
+  const isMaleUser =
+    normalizedUser === "laki-laki" || normalizedUser === "pria" || normalizedUser === "male";
 
+  // Cek jika nilai berupa enum PUTRI / PUTRA / CAMPUR
+  const upperVal = (genderTargetOrText ?? "").trim().toUpperCase();
+  if (upperVal === "CAMPUR") return 0.8;
+  if (upperVal === "PUTRI") {
+    if (isFemaleUser) return 1;
+    if (isMaleUser) return 0;
+    return 0.9;
+  }
+  if (upperVal === "PUTRA") {
+    if (isMaleUser) return 1;
+    if (isFemaleUser) return 0;
+    return 0.9;
+  }
+
+  // Jika bukan enum exact, scan teks (dari genderTargetOrText maupun fallbackText)
+  const textToScan = `${genderTargetOrText ?? ""} ${fallbackText ?? ""}`.toLowerCase();
   const isPutriKos =
-    lowerText.includes("putri") || lowerText.includes("wanita") || lowerText.includes("cewek");
+    textToScan.includes("putri") || textToScan.includes("wanita") || textToScan.includes("cewek");
   const isPutraKos =
-    lowerText.includes("putra") || lowerText.includes("pria") || lowerText.includes("cowok");
+    textToScan.includes("putra") || textToScan.includes("pria") || textToScan.includes("cowok");
   const isCampurKos =
-    lowerText.includes("campur") || lowerText.includes("pasutri") || lowerText.includes("bebas");
+    textToScan.includes("campur") || textToScan.includes("pasutri") || textToScan.includes("bebas");
 
-  // Jika kos campur, bisa dihuni oleh putra maupun putri
   if (isCampurKos) {
     return 0.8;
   }
 
-  if (normalizedUser === "perempuan" || normalizedUser === "wanita") {
+  if (isFemaleUser) {
     if (isPutriKos) return 1;
-    if (isPutraKos) return 0; // Kos khusus putra: dilarang dihuni perempuan
-    return 0.9; // Tidak spesifik/umum
+    if (isPutraKos) return 0;
+    return 0.9;
   }
 
-  if (normalizedUser === "laki-laki" || normalizedUser === "pria") {
+  if (isMaleUser) {
     if (isPutraKos) return 1;
-    if (isPutriKos) return 0; // Kos khusus putri: dilarang dihuni laki-laki
-    return 0.9; // Tidak spesifik/umum
+    if (isPutriKos) return 0;
+    return 0.9;
   }
 
   return 1;

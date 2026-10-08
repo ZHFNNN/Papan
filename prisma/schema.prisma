@@ -110,8 +110,11 @@ model Property {
   longitude   Float?
   imageUrls   String[]           @default([])
   description String?
+  genderTarget String?
   price       Decimal
   listingType String
+  discountPercentage  Int?
+  discountActiveUntil DateTime?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   owner       User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)

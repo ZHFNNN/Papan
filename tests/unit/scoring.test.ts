@@ -93,6 +93,24 @@ describe("normalizeGenderScore — branch coverage", () => {
     expect(normalizeGenderScore("Laki-laki", "Kost Khusus Wanita", "KOSAN")).toBe(0);
     expect(normalizeGenderScore("Laki-laki", "Kosan Asri Tanpa Tag", "KOSAN")).toBe(0.9);
   });
+
+  it("correctly handles direct genderTarget database column values", () => {
+    // Kos Putri
+    expect(normalizeGenderScore("Perempuan", "PUTRI", "KOSAN")).toBe(1);
+    expect(normalizeGenderScore("Laki-laki", "PUTRI", "KOSAN")).toBe(0);
+
+    // Kos Putra
+    expect(normalizeGenderScore("Laki-laki", "PUTRA", "KOSAN")).toBe(1);
+    expect(normalizeGenderScore("Perempuan", "PUTRA", "KOSAN")).toBe(0);
+
+    // Kos Campur
+    expect(normalizeGenderScore("Perempuan", "CAMPUR", "KOSAN")).toBe(0.8);
+    expect(normalizeGenderScore("Laki-laki", "CAMPUR", "KOSAN")).toBe(0.8);
+
+    // Rumah & Apartemen
+    expect(normalizeGenderScore("Perempuan", null, "RUMAH")).toBe(1);
+    expect(normalizeGenderScore("Laki-laki", null, "APARTEMEN")).toBe(1);
+  });
 });
 
 describe("normalizeLocationScore — branch coverage", () => {

@@ -25,7 +25,7 @@ type FormData = {
   facilities: string[];
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
+type FormErrors = Partial<Record<keyof FormData | 'genderTarget', string>>;
 
 type FacilityOption = {
   code: string;
@@ -43,15 +43,15 @@ const CATEGORY_OPTIONS: { value: PropertyCategory; label: string }[] = [
   { value: 'KOSAN', label: 'Kosan' },
 ];
 
-const KOS_GENDER_OPTIONS: { value: 'Kost Putri' | 'Kost Putra' | 'Kost Campur'; label: string }[] = [
-  { value: 'Kost Putri', label: 'Kost Putri' },
-  { value: 'Kost Putra', label: 'Kost Putra' },
-  { value: 'Kost Campur', label: 'Kost Campur' },
+const KOS_GENDER_OPTIONS: { value: 'PUTRI' | 'PUTRA' | 'CAMPUR'; label: string }[] = [
+  { value: 'PUTRI', label: 'Kost Putri' },
+  { value: 'PUTRA', label: 'Kost Putra' },
+  { value: 'CAMPUR', label: 'Kost Campur' },
 ];
 
 export default function AddPropertyPage() {
   const router = useRouter();
-  const [kosGender, setKosGender] = useState<'Kost Putri' | 'Kost Putra' | 'Kost Campur'>('Kost Campur');
+  const [genderTarget, setGenderTarget] = useState<'PUTRI' | 'PUTRA' | 'CAMPUR' | ''>('');
   const [form, setForm] = useState<FormData>({
     title: '',
     address: '',
@@ -226,6 +226,9 @@ export default function AddPropertyPage() {
     if (!form.description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
     if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
     if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
+    if (form.category === 'KOSAN' && !genderTarget) {
+      newErrors.genderTarget = 'Tipe gender kosan wajib dipilih (Putri, Putra, atau Campur).';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -239,30 +242,17 @@ export default function AddPropertyPage() {
       const priceNum = Number(form.price.replace(/[^0-9]/g, ''));
       const uploadedPhotoUrls = photos.length > 0 ? await uploadPhotosToCloudinary(photos) : [];
 
-      let finalDescription = form.description.trim();
-      if (form.category === 'KOSAN') {
-        const tag =
-          kosGender === 'Kost Putri'
-            ? '[Tipe: Khusus Putri]'
-            : kosGender === 'Kost Putra'
-            ? '[Tipe: Khusus Putra]'
-            : '[Tipe: Campur]';
-
-        if (!finalDescription.startsWith('[Tipe:')) {
-          finalDescription = `${tag} ${finalDescription}`;
-        }
-      }
-
       // NOTE: Buat API route POST /api/owner/properties
       const res = await fetch('/api/owner/properties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title.trim(),
-          description: finalDescription,
+          description: form.description.trim(),
           price: priceNum,
           listingType: form.listingType,
           category: form.category,
+          genderTarget: form.category === 'KOSAN' ? genderTarget : null,
           address: form.address,
           location: {
             lat: form.locationLat,
@@ -374,22 +364,28 @@ export default function AddPropertyPage() {
               {errors.category && <p className={styles.errorText}>{errors.category}</p>}
             </div>
 
-            {/* Tipe Kos (Gender) - Tampil jika Kategori KOSAN dipilih */}
+            {/* Tipe Kos (Gender) - Wajib jika Kategori KOSAN dipilih */}
             {form.category === 'KOSAN' && (
               <div className={styles.fieldGroup}>
-                <label className={styles.label}>Tipe Kos (Target Penghuni)</label>
+                <label className={styles.label}>
+                  Tipe Kos (Target Penghuni) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <div className={styles.listingTypeGroup}>
                   {KOS_GENDER_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setKosGender(opt.value)}
-                      className={`${styles.listingTypeBtn} ${kosGender === opt.value ? styles.listingTypeBtnActive : ''}`}
+                      onClick={() => {
+                        setGenderTarget(opt.value);
+                        setErrors((prev) => ({ ...prev, genderTarget: undefined }));
+                      }}
+                      className={`${styles.listingTypeBtn} ${genderTarget === opt.value ? styles.listingTypeBtnActive : ''}`}
                     >
                       {opt.label}
                     </button>
                   ))}
                 </div>
+                {errors.genderTarget && <p className={styles.errorText}>{errors.genderTarget}</p>}
               </div>
             )}
 

@@ -63,6 +63,7 @@ export async function GET() {
       id: true,
       title: true,
       category: true,
+      genderTarget: true,
       address: true,
       city: true,
       district: true,
@@ -123,7 +124,12 @@ export async function GET() {
     const text = `${property.title} ${property.description ?? ""} ${property.address ?? ""} ${property.neighbourhood ?? ""} ${property.district ?? ""} ${property.city ?? ""}`.toLowerCase();
 
     // Cek kecocokan gender (khusus KOSAN)
-    const genderScore = normalizeGenderScore(personalization.gender, `${property.title} ${property.description ?? ""}`, property.category);
+    const genderScore = normalizeGenderScore(
+      personalization.gender,
+      property.genderTarget,
+      property.category,
+      `${property.title} ${property.description ?? ""}`
+    );
 
     // Jika kosan dilarang untuk gender pengguna (skor 0), eliminasi dari rekomendasi
     if (genderScore === 0) {
@@ -147,6 +153,7 @@ export async function GET() {
       id: property.id,
       title: property.title,
       category: property.category,
+      genderTarget: property.genderTarget,
       listingType: property.listingType,
       coverImageUrl: property.imageUrls[0] ?? null,
       images: property.imageUrls,
