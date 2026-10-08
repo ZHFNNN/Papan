@@ -21,6 +21,7 @@ export default defineConfig({
         "lib/booster.ts",
         "lib/midtrans.ts",
         "lib/kyc-image.ts",
+        "lib/review-photos.ts",
       ],
     },
   },

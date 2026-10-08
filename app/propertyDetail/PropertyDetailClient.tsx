@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import styles from './page.module.css';
 import { formatPrice } from '@/lib/format-price';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
+import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from '@/lib/review-photos';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ type PropertyDetailClientProps = { propertyId: string };
 
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1494526585095-c41746248156?w=1200&q=80';
-const MAX_PHOTO_UPLOAD = 5;
+const MAX_PHOTO_UPLOAD = MAX_REVIEW_PHOTOS;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -374,7 +375,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
 
   // ── Review photo pick ────────────────────────────────────────
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
+    const picked = Array.from(e.target.files ?? []);
+    const files = picked.filter((f) => f.type.startsWith('image/') && f.size <= MAX_REVIEW_PHOTO_BYTES);
+    if (files.length < picked.length) toast.error('Foto harus berupa gambar, maksimal 5 MB per foto.');
     const remaining = MAX_PHOTO_UPLOAD - formPhotos.length;
     const added = files.slice(0, remaining);
     setFormPhotos((prev) => [...prev, ...added]);
@@ -396,17 +399,19 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
     setFormSubmitting(true); setFormError(null);
 
     try {
-      // Konversi foto ke base64 langsung di client — tidak perlu /api/upload
-      const photoDataURIs: string[] = await Promise.all(
-        formPhotos.map(
-          (file) =>
-            new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => reject(new Error(`Gagal membaca file ${file.name}`));
-              reader.readAsDataURL(file);
-            })
-        )
+      // Upload foto ke Cloudinary satu per satu, ulasan cukup menyimpan URL-nya
+      const photoUrls: string[] = await Promise.all(
+        formPhotos.map(async (file) => {
+          const fd = new FormData();
+          fd.append('file', file);
+          const uploadRes = await fetch('/api/uploads/review', { method: 'POST', body: fd, credentials: 'include' });
+          const uploadJson = await uploadRes.json().catch(() => ({}));
+          if (uploadRes.status === 401) throw new Error('Silakan login terlebih dahulu.');
+          if (!uploadRes.ok || !uploadJson.data?.url) {
+            throw new Error(uploadJson.message ?? `Gagal mengunggah foto ${file.name}`);
+          }
+          return uploadJson.data.url as string;
+        })
       );
 
       const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}/reviews`, {
@@ -416,7 +421,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
         body: JSON.stringify({
           rating: formRating,
           comment: formComment.trim() || undefined,
-          photos: photoDataURIs,
+          photos: photoUrls,
         }),
       });
       const json = await res.json().catch(() => ({}));
