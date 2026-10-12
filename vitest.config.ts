@@ -17,6 +17,7 @@ export default defineConfig({
       include: [
         "lib/dss/scoring.ts",
         "lib/dss/facility-mapping.ts",
+        "lib/dss/priorities.ts",
         "lib/format-price.ts",
         "lib/booster.ts",
         "lib/midtrans.ts",
