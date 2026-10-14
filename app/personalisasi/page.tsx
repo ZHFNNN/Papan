@@ -24,7 +24,13 @@ interface FormErrors {
   occupation?: string;
   budget?: string;
   gender?: string;
+  priorities?: string;
 }
+
+// Prioritas DSS: 3 kriteria disusun ke 3 tingkat (masing-masing tingkat diisi 1 kriteria)
+type CriteriaKey  = 'budget' | 'location' | 'facilities';
+type PriorityTier = 'high' | 'medium' | 'low';
+type PriorityRanking = Record<PriorityTier, CriteriaKey | null>;
 
 // ── Opsi pilihan ───────────────────────────────────────────────────────────
 const OCCUPATIONS = ['Mahasiswa', 'Karyawan', 'Wiraswasta', 'Freelancer', 'Lainnya'];
@@ -39,6 +45,21 @@ const PREFERENCES = [
   'Water Heater',
   'Dekat transportasi umum',
 ];
+
+const CRITERIA: { key: CriteriaKey; label: string; icon: string }[] = [
+  { key: 'budget',     label: 'Budget',    icon: '💰' },
+  { key: 'location',   label: 'Lokasi',    icon: '📍' },
+  { key: 'facilities', label: 'Fasilitas', icon: '🛋️' },
+];
+
+// level dikirim ke API: 3 = paling penting, 2 = penting, 1 = biasa saja
+const PRIORITY_TIERS: { tier: PriorityTier; label: string; hint: string; level: number; dots: string }[] = [
+  { tier: 'high',   label: 'Paling penting', hint: 'Jadi pertimbangan utama',   level: 3, dots: '●●●' },
+  { tier: 'medium', label: 'Penting',        hint: 'Cukup dipertimbangkan',     level: 2, dots: '●●○' },
+  { tier: 'low',    label: 'Biasa saja',     hint: 'Tidak terlalu berpengaruh', level: 1, dots: '●○○' },
+];
+
+const criteriaLabel = (key: CriteriaKey) => CRITERIA.find((c) => c.key === key)?.label ?? key;
 
 export default function PersonalisasiPage() {
   const router = useRouter();
@@ -62,6 +83,9 @@ export default function PersonalisasiPage() {
 
   const mapEmbedSrc = `https://maps.google.com/maps?q=${formData.locationLat ?? -2.5},${formData.locationLng ?? 118}&z=${formData.locationLat && formData.locationLng ? 15 : 5}&output=embed`;
 
+  const [ranking, setRanking]                 = useState<PriorityRanking>({ high: null, medium: null, low: null });
+  const [selectedCriteria, setSelectedCriteria] = useState<CriteriaKey | null>(null);
+  const [dragOverZone, setDragOverZone]         = useState<PriorityTier | 'pool' | null>(null);
   const [errors, setErrors]                     = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting]         = useState(false);
   const [isSkipping, setIsSkipping]             = useState(false);
@@ -108,12 +132,103 @@ export default function PersonalisasiPage() {
     }));
   };
 
+  // ── Prioritas DSS ────────────────────────────────────────────────────────
+  const tierOf = (key: CriteriaKey): PriorityTier | null =>
+    (Object.keys(ranking) as PriorityTier[]).find((t) => ranking[t] === key) ?? null;
+
+  const unassignedCriteria = CRITERIA.filter((c) => tierOf(c.key) === null);
+
+  const placeCriteria = (key: CriteriaKey, target: PriorityTier) => {
+    setRanking((prev) => {
+      const next = { ...prev };
+      const from = (Object.keys(prev) as PriorityTier[]).find((t) => prev[t] === key) ?? null;
+      const displaced = prev[target];
+      if (from) next[from] = displaced; // tukar posisi kalau tingkat tujuan sudah terisi
+      next[target] = key;
+      return next;
+    });
+    setSelectedCriteria(null);
+    setErrors((prev) => ({ ...prev, priorities: undefined }));
+  };
+
+  const unplaceCriteria = (key: CriteriaKey) => {
+    setRanking((prev) => {
+      const next = { ...prev };
+      (Object.keys(next) as PriorityTier[]).forEach((t) => {
+        if (next[t] === key) next[t] = null;
+      });
+      return next;
+    });
+    setSelectedCriteria(null);
+  };
+
+  const handleChipClick = (key: CriteriaKey) => {
+    const tier = tierOf(key);
+    // kalau ada kriteria lain yang sedang dipilih dan chip ini ada di slot → tukar
+    if (selectedCriteria && selectedCriteria !== key && tier) {
+      placeCriteria(selectedCriteria, tier);
+      return;
+    }
+    setSelectedCriteria((prev) => (prev === key ? null : key));
+  };
+
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>, key: CriteriaKey) => {
+    e.dataTransfer.setData('text/plain', key);
+    e.dataTransfer.effectAllowed = 'move';
+    setSelectedCriteria(null);
+  };
+
+  const readDraggedKey = (e: React.DragEvent): CriteriaKey | null => {
+    const raw = e.dataTransfer.getData('text/plain');
+    return CRITERIA.some((c) => c.key === raw) ? (raw as CriteriaKey) : null;
+  };
+
+  const handleDropOnTier = (e: React.DragEvent, tier: PriorityTier) => {
+    e.preventDefault();
+    setDragOverZone(null);
+    const key = readDraggedKey(e);
+    if (key) placeCriteria(key, tier);
+  };
+
+  const handleDropOnPool = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverZone(null);
+    const key = readDraggedKey(e);
+    if (key) unplaceCriteria(key);
+  };
+
+  const renderChip = (key: CriteriaKey, inSlot: boolean) => {
+    const c = CRITERIA.find((item) => item.key === key)!;
+    return (
+      <button
+        type="button"
+        draggable
+        onDragStart={(e) => handleDragStart(e, key)}
+        onClick={() => handleChipClick(key)}
+        aria-pressed={selectedCriteria === key}
+        className={`${styles.priorityChip} ${inSlot ? styles.priorityChipInSlot : ''} ${selectedCriteria === key ? styles.priorityChipSelected : ''}`}
+      >
+        <span aria-hidden="true">{c.icon}</span>
+        {c.label}
+      </button>
+    );
+  };
+
+  const prioritySummary = PRIORITY_TIERS
+    .map((t) => ranking[t.tier])
+    .filter((k): k is CriteriaKey => k !== null)
+    .map(criteriaLabel)
+    .join(' › ');
+
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
     if (!formData.location.trim()) newErrors.location   = 'Pilih lokasi lewat peta.';
     if (!formData.occupation)      newErrors.occupation = 'Pilih pekerjaan kamu.';
     if (!formData.budget)          newErrors.budget     = 'Pilih range budget kamu.';
     if (!formData.gender)          newErrors.gender     = 'Pilih gender kamu.';
+    if (!ranking.high || !ranking.medium || !ranking.low) {
+      newErrors.priorities = 'Susun ketiga kriteria ke tingkat Paling penting, Penting, dan Biasa saja.';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -122,11 +237,19 @@ export default function PersonalisasiPage() {
     if (!validate()) return;
     setIsSubmitting(true);
     setSubmitError(null);
+
+    // ubah susunan tingkat → { budget, location, facilities } berisi level 1-3
+    const priorities = {} as Record<CriteriaKey, number>;
+    PRIORITY_TIERS.forEach(({ tier, level }) => {
+      const key = ranking[tier];
+      if (key) priorities[key] = level;
+    });
+
     try {
       const res = await fetch('/api/personalisasi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, priorities }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -291,6 +414,79 @@ export default function PersonalisasiPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Prioritas */}
+              <p className={styles.sectionLabel}>Prioritas pencarian</p>
+              <div className={styles.fieldGroup}>
+                <p className={styles.priorityHint}>
+                  {selectedCriteria
+                    ? `Sekarang klik tingkat prioritas untuk "${criteriaLabel(selectedCriteria)}".`
+                    : 'Klik kriteria lalu klik tingkatnya, atau seret langsung ke kotak prioritas.'}
+                </p>
+
+                {/* Kriteria yang belum diprioritaskan */}
+                <div
+                  className={`${styles.priorityPool} ${dragOverZone === 'pool' ? styles.priorityPoolOver : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverZone('pool'); }}
+                  onDragLeave={() => setDragOverZone(null)}
+                  onDrop={handleDropOnPool}
+                >
+                  {unassignedCriteria.length > 0
+                    ? unassignedCriteria.map((c) => <span key={c.key}>{renderChip(c.key, false)}</span>)
+                    : <span className={styles.priorityPoolEmpty}>Semua kriteria sudah diprioritaskan ✓</span>}
+                </div>
+
+                {/* 3 tingkat prioritas */}
+                <div className={styles.priorityTiers}>
+                  {PRIORITY_TIERS.map(({ tier, label, hint, dots }) => {
+                    const occupant = ranking[tier];
+                    return (
+                      <div key={tier} className={styles.priorityTier}>
+                        <div className={styles.priorityTierInfo}>
+                          <span className={styles.priorityTierLabel}>
+                            <span className={styles.priorityDots} aria-hidden="true">{dots}</span> {label}
+                          </span>
+                          <span className={styles.priorityTierHint}>{hint}</span>
+                        </div>
+                        <div
+                          className={[
+                            styles.prioritySlot,
+                            occupant ? styles.prioritySlotFilled : '',
+                            dragOverZone === tier ? styles.prioritySlotOver : '',
+                            errors.priorities && !occupant ? styles.prioritySlotError : '',
+                          ].join(' ')}
+                          onDragOver={(e) => { e.preventDefault(); setDragOverZone(tier); }}
+                          onDragLeave={() => setDragOverZone(null)}
+                          onDrop={(e) => handleDropOnTier(e, tier)}
+                        >
+                          {occupant ? (
+                            <>
+                              {renderChip(occupant, true)}
+                              <button
+                                type="button"
+                                className={styles.priorityRemoveBtn}
+                                onClick={() => unplaceCriteria(occupant)}
+                                aria-label={`Lepas ${criteriaLabel(occupant)} dari ${label}`}
+                              >
+                                ×
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`${styles.prioritySlotPlaceholder} ${selectedCriteria ? styles.prioritySlotPlaceholderReady : ''}`}
+                              onClick={() => { if (selectedCriteria) placeCriteria(selectedCriteria, tier); }}
+                            >
+                              {selectedCriteria ? `Taruh ${criteriaLabel(selectedCriteria)} di sini` : 'Kosong — pilih atau seret kriteria ke sini'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {errors.priorities && <p className={styles.errorText}>{errors.priorities}</p>}
+              </div>
             </div>
 
             {/* ── Kolom Kanan: Map + Summary ── */}
@@ -362,12 +558,18 @@ export default function PersonalisasiPage() {
                       {formData.location || 'Belum dipilih'}
                     </span>
                   </div>
-                  <div className={`${styles.summaryRow} ${styles.summaryRowLast}`}>
+                  <div className={styles.summaryRow}>
                     <span className={styles.summaryKey}>Fasilitas</span>
                     <span className={styles.summaryVal}>
                       {formData.preferences.length > 0
                         ? `${formData.preferences.length} dipilih`
                         : <span className={styles.summaryValEmpty}>Belum dipilih</span>}
+                    </span>
+                  </div>
+                  <div className={`${styles.summaryRow} ${styles.summaryRowLast}`}>
+                    <span className={styles.summaryKey}>Prioritas</span>
+                    <span className={`${styles.summaryVal} ${!prioritySummary ? styles.summaryValEmpty : ''}`}>
+                      {prioritySummary || 'Belum diatur'}
                     </span>
                   </div>
                 </div>
