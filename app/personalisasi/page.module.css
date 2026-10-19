@@ -634,3 +634,135 @@
     font-size: 14px;
   }
 }
+
+
+/* ── Prioritas DSS ───────────────────────────────────────────────────────── */
+.priorityHint {
+  font-size: 12px;
+  color: rgba(25, 38, 60, 0.55);
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+}
+.priorityPool {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(25, 38, 60, 0.18);
+  background: #f7f8fa;
+  transition: all 0.2s;
+}
+.priorityPoolOver { border-color: #19263c; background: rgba(25, 38, 60, 0.06); }
+.priorityPoolEmpty {
+  font-size: 12px;
+  color: rgba(25, 38, 60, 0.45);
+  font-family: 'Poppins', sans-serif;
+}
+.priorityChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 30px;
+  border: 1.5px solid rgba(25, 38, 60, 0.25);
+  background: white;
+  color: #19263c;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+  cursor: grab;
+  transition: all 0.2s;
+}
+.priorityChip:hover { border-color: #19263c; }
+.priorityChip:active { cursor: grabbing; }
+.priorityChipInSlot { cursor: pointer; }
+.priorityChipSelected {
+  background: #19263c;
+  color: white;
+  border-color: #19263c;
+  box-shadow: 0 0 0 3px rgba(25, 38, 60, 0.15);
+}
+.priorityTiers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.priorityTier {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.priorityTierInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.priorityTierLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #19263c;
+  font-family: 'Poppins', sans-serif;
+}
+.priorityDots {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #19263c;
+  margin-right: 2px;
+}
+.priorityTierHint {
+  font-size: 11px;
+  color: rgba(25, 38, 60, 0.5);
+  font-family: 'Poppins', sans-serif;
+}
+.prioritySlot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(25, 38, 60, 0.22);
+  background: transparent;
+  transition: all 0.2s;
+}
+.prioritySlotFilled {
+  border-style: solid;
+  border-color: rgba(25, 38, 60, 0.35);
+  background: rgba(25, 38, 60, 0.04);
+}
+.prioritySlotOver { border-color: #19263c; background: rgba(25, 38, 60, 0.08); }
+.prioritySlotError { border-color: #ef4444; }
+.prioritySlotPlaceholder {
+  flex: 1;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 12px;
+  color: rgba(25, 38, 60, 0.45);
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+}
+.prioritySlotPlaceholderReady { color: #19263c; font-weight: 600; }
+.priorityRemoveBtn {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(25, 38, 60, 0.08);
+  color: #19263c;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.priorityRemoveBtn:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+@media (max-width: 480px) {
+  .priorityTier { grid-template-columns: 1fr; gap: 6px; }
+}
