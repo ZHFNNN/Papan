@@ -510,7 +510,11 @@
 
 .discountModal {
   position: relative;
-  width: min(960px, 100%);
+  /* Lebar mengikuti jumlah kartu: 1 kartu = ramping, banyak kartu = melebar
+     sampai batas 960px, sisanya digeser (scroll) */
+  width: fit-content;
+  min-width: min(280px, 100%);
+  max-width: min(960px, 100%);
   max-height: calc(100dvh - 32px);
   border-radius: clamp(16px, 2vw, 24px);
   overflow: hidden;
@@ -694,6 +698,8 @@
 .discountHeader {
   position: relative;
   z-index: 3;
+  /* Ticker berjalan sangat panjang; jangan ikut menentukan lebar popup */
+  contain: inline-size;
   padding: 14px 28px 12px;
   background: linear-gradient(180deg, #070d1c 0%, #0d1a33 100%);
   box-shadow: 0 10px 24px rgba(0, 8, 255, 0.178);
@@ -815,6 +821,8 @@
   position: relative;
   z-index: 3;
   display: flex;
+  /* Kartu di tengah saat sedikit; saat banyak tetap mulai dari kiri & bisa digeser */
+  justify-content: safe center;
   gap: clamp(12px, 1.4vw, 18px);
   padding: 12px clamp(16px, 2.4vw, 28px) 28px;
   overflow-x: auto;

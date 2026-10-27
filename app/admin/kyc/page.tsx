@@ -323,6 +323,9 @@ export default function AdminKycPage() {
           <button className={styles.navItem} onClick={() => router.push('/admin/chat')}>
             <span>💬</span> Monitoring Chat
           </button>
+          <button className={styles.navItem} onClick={() => router.push('/admin/reviews')}>
+            <span>⭐</span> Moderasi Review
+          </button>
         </nav>
 
         <button className={styles.sidebarLogout} onClick={() => signOut({ callbackUrl: '/login' })}>

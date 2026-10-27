@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StartChatButton from '@/components/chat/StartChatButton';
@@ -11,6 +12,10 @@ import styles from './page.module.css';
 import { formatPrice } from '@/lib/format-price';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from '@/lib/review-photos';
+import { deleteReviewAsAdmin } from '@/lib/admin-reviews-api';
+
+/** Alasan default saat admin menghapus langsung dari halaman detail. */
+const ADMIN_QUICK_DELETE_REASON = 'Melanggar ketentuan ulasan';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -242,7 +247,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [reviewDeleteCandidate, setReviewDeleteCandidate] = useState<{ id: string } | null>(null);
+  const [reviewDeleteCandidate, setReviewDeleteCandidate] = useState<{ id: string; asAdmin: boolean } | null>(null);
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'ADMIN';
   const [reviewDeleteLoading, setReviewDeleteLoading] = useState(false);
   const [reviewDeleteError, setReviewDeleteError] = useState<string | null>(null);
 
@@ -444,8 +451,8 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
   };
 
   // ── Delete own review ────────────────────────────────────────
-  const openDeleteReviewModal = (reviewId: string) => {
-    setReviewDeleteCandidate({ id: reviewId });
+  const openDeleteReviewModal = (reviewId: string, asAdmin = false) => {
+    setReviewDeleteCandidate({ id: reviewId, asAdmin });
     setReviewDeleteError(null);
   };
 
@@ -460,6 +467,12 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
     setReviewDeleteLoading(true);
     setReviewDeleteError(null);
     try {
+      if (reviewDeleteCandidate.asAdmin) {
+        await deleteReviewAsAdmin(reviewDeleteCandidate.id, ADMIN_QUICK_DELETE_REASON);
+        setReviewDeleteCandidate(null);
+        await fetchReviews();
+        return;
+      }
       const res = await fetch(
         `/api/properties/${encodeURIComponent(propertyId)}/reviews/${reviewDeleteCandidate.id}`,
         { method: 'DELETE', credentials: 'include' }
@@ -565,8 +578,12 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
 
       <ConfirmDialog
         open={Boolean(reviewDeleteCandidate)}
-        title="Hapus review?"
-        description="Review kamu akan dihapus dan tidak bisa dikembalikan."
+        title={reviewDeleteCandidate?.asAdmin ? 'Hapus review sebagai admin?' : 'Hapus review?'}
+        description={
+          reviewDeleteCandidate?.asAdmin
+            ? `Review ini akan dihapus permanen dan user diberi tahu dengan alasan "${ADMIN_QUICK_DELETE_REASON}". Untuk alasan lain, gunakan halaman Moderasi Review.`
+            : 'Review kamu akan dihapus dan tidak bisa dikembalikan.'
+        }
         confirmText="Hapus"
         cancelText="Batal"
         loading={reviewDeleteLoading}
@@ -824,6 +841,16 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                           title="Hapus ulasan"
                         >
                           Hapus review
+                        </button>
+                      )}
+                      {isAdmin && currentUser?.id !== review.user.id && (
+                        <button
+                          type="button"
+                          className={styles.reviewDeleteBtn}
+                          onClick={() => openDeleteReviewModal(review.id, true)}
+                          title="Hapus ulasan (admin)"
+                        >
+                          Hapus (Admin)
                         </button>
                       )}
                     </div>
