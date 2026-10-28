@@ -25,6 +25,7 @@ export default defineConfig({
         "lib/review-photos.ts",
         "lib/property-input.ts",
         "lib/upload.ts",
+        "lib/photo-hash.ts",
       ],
     },
   },

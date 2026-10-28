@@ -11,6 +11,7 @@ import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
 import { normalizeCategory, normalizeListingType, resolveGenderTarget } from '@/lib/property-input';
 import { invalidatePropertyListCache } from '@/lib/property-list-cache';
+import { DUPLICATE_PHOTO_API_MESSAGE, hasDuplicatePhotoUrls } from '@/lib/photo-hash';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 export async function GET(
@@ -159,6 +160,10 @@ export async function PATCH(
       { message: `Minimal ${MIN_PROPERTY_PHOTOS} foto properti.` },
       { status: 400 }
     );
+  }
+
+  if (photoUrls && hasDuplicatePhotoUrls(photoUrls)) {
+    return NextResponse.json({ message: DUPLICATE_PHOTO_API_MESSAGE }, { status: 400 });
   }
 
   // Resolve facilities — support code preset + nama custom

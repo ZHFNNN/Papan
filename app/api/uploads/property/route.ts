@@ -1,6 +1,7 @@
 import { requireAuth } from '@/lib/require-user';
 import { uploadImageBuffer } from '@/lib/cloudinary';
 import { MB, readImageFile } from '@/lib/upload';
+import { buildPropertyPhotoPublicId, hashBytes } from '@/lib/photo-hash';
 
 export const runtime = 'nodejs';
 
@@ -13,13 +14,20 @@ export async function POST(request: Request) {
   const image = await readImageFile(request, { label: 'File foto properti', maxBytes: 8 * MB });
   if ('error' in image) return image.error;
 
-  const uploaded = await uploadImageBuffer(image.buffer, { folder: 'papan/properties' });
+  // public_id berbasis isi file: foto yang sama selalu menghasilkan public_id yang sama,
+  // sehingga duplikat bisa dikenali saat daftar foto properti disimpan.
+  const hash = await hashBytes(image.buffer);
+  const uploaded = await uploadImageBuffer(image.buffer, {
+    folder: 'papan/properties',
+    public_id: buildPropertyPhotoPublicId(auth.session.user.id, hash),
+  });
 
   return Response.json({
     message: 'Upload berhasil',
     data: {
       url: uploaded.secure_url,
       publicId: uploaded.public_id,
+      hash,
     },
   });
 }

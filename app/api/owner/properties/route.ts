@@ -9,6 +9,7 @@ import { resolveFacilityRecords } from '@/lib/facilities';
 import { prisma } from '@/lib/prisma';
 import { normalizeCategory, normalizeListingType, resolveGenderTarget } from '@/lib/property-input';
 import { invalidatePropertyListCache } from '@/lib/property-list-cache';
+import { DUPLICATE_PHOTO_API_MESSAGE, hasDuplicatePhotoUrls } from '@/lib/photo-hash';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 export async function POST(req: NextRequest) {
@@ -60,6 +61,10 @@ export async function POST(req: NextRequest) {
       { message: `Minimal ${MIN_PROPERTY_PHOTOS} foto properti.` },
       { status: 400 }
     );
+  }
+
+  if (hasDuplicatePhotoUrls(photoUrls)) {
+    return NextResponse.json({ message: DUPLICATE_PHOTO_API_MESSAGE }, { status: 400 });
   }
 
   const facilityRecords = await resolveFacilityRecords(facilityInputs);
