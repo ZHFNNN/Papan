@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/require-user';
-import { parseRemovalReason, reviewRemovedNotification } from '@/lib/review-moderation';
+import { parseReason, reviewRemovedNotification } from '@/lib/review-moderation';
 
 type RouteContext = {
   params: Promise<{ reviewId: string }>;
@@ -12,7 +12,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
   const auth = await requireAdmin();
   if ('error' in auth) return auth.error;
 
-  const parsed = parseRemovalReason(await request.json().catch(() => null));
+  const parsed = parseReason(await request.json().catch(() => null));
   if (!parsed.ok) {
     return Response.json({ message: parsed.error }, { status: 400 });
   }
