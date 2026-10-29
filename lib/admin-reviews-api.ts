@@ -5,14 +5,10 @@
  *   GET /api/properties?take=200            -> daftar properti
  *   GET /api/properties/[id]/reviews        -> review per properti
  *
- * HAPUS REVIEW — ⚠️ endpoint belum dibuat oleh tim BE, jadi sementara hanya
- * disembunyikan di sisi browser (muncul lagi setelah refresh).
- * Saat endpoint siap, set USE_MOCK_DELETE = false. Kontrak yang diharapkan:
- *
- *   DELETE /api/admin/reviews/[reviewId]   body: { reason: string }
- *          -> { message: string }
- *          (cek requireAdmin(), hapus review + balasannya, lalu kirim
- *           notifikasi ke penulis review berisi alasan)
+ * LAPORAN & KEPUTUSAN ADMIN (endpoint dari tim BE):
+ *   GET    /api/admin/review-reports               -> review yang dilaporkan user
+ *   PATCH  /api/admin/reviews/[reviewId]/dismiss   -> tolak laporan, review tetap tampil
+ *   DELETE /api/admin/reviews/[reviewId]           body: { reason } -> hapus + notifikasi ke penulis
  */
 
 export type AdminReview = {
@@ -25,13 +21,20 @@ export type AdminReview = {
   property: { id: string; title: string };
 };
 
+export type ReviewReport = {
+  id: string;
+  reason: string;
+  createdAt: string;
+  reporter: { id: string; name: string | null; username: string | null };
+};
+
+export type ReportedReview = AdminReview & { reports: ReviewReport[] };
+
 export type AdminReviewFilter = {
   q?: string;
   rating?: number | null;
   hasPhoto?: boolean;
 };
-
-const USE_MOCK_DELETE = true;
 
 const PROPERTY_LIMIT = 200;
 /** Jumlah request review yang dijalankan bersamaan. */
@@ -101,20 +104,43 @@ export async function fetchAdminReviews(filter: AdminReviewFilter = {}, options:
   return applyFilter(cachedReviews, filter);
 }
 
-export async function deleteReviewAsAdmin(reviewId: string, reason: string): Promise<void> {
-  if (USE_MOCK_DELETE) {
-    locallyDeleted.add(reviewId);
-    return;
-  }
+async function readError(res: Response, fallback: string) {
+  if (res.status === 401 || res.status === 403) return new Error('UNAUTHORIZED');
+  const json = await res.json().catch(() => ({}));
+  return new Error(json.message ?? fallback);
+}
 
+export async function fetchReportedReviews(): Promise<ReportedReview[]> {
+  const res = await fetch('/api/admin/review-reports');
+  if (!res.ok) throw await readError(res, 'Gagal memuat laporan review.');
+  const json = await res.json().catch(() => ({}));
+  const items: ReportedReview[] = Array.isArray(json.data) ? json.data : [];
+  return items.filter((r) => !locallyDeleted.has(r.id));
+}
+
+export async function dismissReviewReports(reviewId: string): Promise<void> {
+  const res = await fetch(`/api/admin/reviews/${encodeURIComponent(reviewId)}/dismiss`, { method: 'PATCH' });
+  if (!res.ok) throw await readError(res, 'Gagal menolak laporan.');
+}
+
+export async function deleteReviewAsAdmin(reviewId: string, reason: string): Promise<void> {
   const res = await fetch(`/api/admin/reviews/${encodeURIComponent(reviewId)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
   });
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json.message ?? 'Gagal menghapus review.');
-  }
+  if (!res.ok) throw await readError(res, 'Gagal menghapus review.');
+  // Supaya daftar dari cache tidak menampilkan review yang sudah dihapus
   locallyDeleted.add(reviewId);
+}
+
+/** Dipakai user biasa di halaman detail properti. */
+export async function reportReview(reviewId: string, reason: string): Promise<void> {
+  const res = await fetch(`/api/reviews/${encodeURIComponent(reviewId)}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (res.status === 409) throw new Error('ALREADY_REPORTED');
+  if (!res.ok) throw await readError(res, 'Gagal mengirim laporan.');
 }
