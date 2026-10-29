@@ -16,7 +16,8 @@ export async function POST(request: Request) {
 
   // public_id berbasis isi file: foto yang sama selalu menghasilkan public_id yang sama,
   // sehingga duplikat bisa dikenali saat daftar foto properti disimpan.
-  const hash = await hashBytes(image.buffer);
+  // Salin ke Uint8Array: Buffer Node tidak memenuhi tipe BufferSource milik Web Crypto
+  const hash = await hashBytes(new Uint8Array(image.buffer));
   const uploaded = await uploadImageBuffer(image.buffer, {
     folder: 'papan/properties',
     public_id: buildPropertyPhotoPublicId(auth.session.user.id, hash),
