@@ -1,10 +1,11 @@
 'use client';
 
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
 import { KOSAN_GENDER_OPTIONS, KOSAN_GENDER_REQUIRED_MESSAGE, type KosanGenderTarget } from '@/lib/property-input';
+import { DUPLICATE_PHOTO_API_MESSAGE, duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
@@ -66,6 +67,10 @@ export default function AddPropertyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  // Hash isi tiap foto di `photos` (indeks sama), dipakai untuk menolak foto kembar
+  const photoHashesRef = useRef<string[]>([]);
+  // Antrean supaya pilihan foto yang berurutan tidak saling lolos saat hash masih dihitung
+  const appendQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [facilityOptions, setFacilityOptions] = useState<FacilityOption[]>([]);
@@ -178,14 +183,30 @@ export default function AddPropertyPage() {
     if (!files.length) return;
     const validFiles = files.filter((f) => f.type.startsWith('image/'));
     if (!validFiles.length) return;
-    const newPreviews = validFiles.map((f) => URL.createObjectURL(f));
-    setPhotos((prev) => [...prev, ...validFiles]);
-    setPhotoPreviews((prev) => [...prev, ...newPreviews]);
-    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
+
+    appendQueueRef.current = appendQueueRef.current
+      .then(async () => {
+        const { accepted, duplicates } = await splitDuplicatePhotos(validFiles, photoHashesRef.current);
+
+        if (accepted.length) {
+          photoHashesRef.current = [...photoHashesRef.current, ...accepted.map((a) => a.hash)];
+          setPhotos((prev) => [...prev, ...accepted.map((a) => a.file)]);
+          setPhotoPreviews((prev) => [...prev, ...accepted.map((a) => URL.createObjectURL(a.file))]);
+        }
+
+        setErrors((prev) => ({
+          ...prev,
+          photos: duplicates.length ? duplicatePhotoMessage(duplicates.map((f) => f.name)) : undefined,
+        }));
+      })
+      .catch(() => {
+        setErrors((prev) => ({ ...prev, photos: 'Gagal membaca foto. Coba pilih ulang.' }));
+      });
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
+    e.target.value = ''; // supaya file yang sama bisa dipilih lagi setelah dihapus
     appendPhotoFiles(files);
   };
 
@@ -208,6 +229,8 @@ export default function AddPropertyPage() {
 
   const handleRemovePhoto = (index: number) => {
     URL.revokeObjectURL(photoPreviews[index]);
+    photoHashesRef.current = photoHashesRef.current.filter((_, i) => i !== index);
+    setErrors((prev) => (prev.photos ? { ...prev, photos: undefined } : prev));
     setPhotos((prev) => prev.filter((_, i) => i !== index));
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
   };
@@ -228,6 +251,8 @@ export default function AddPropertyPage() {
     }
     if (photos.length < MIN_PROPERTY_PHOTOS) {
       newErrors.photos = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (kamu baru memilih ${photos.length}).`;
+    } else if (new Set(photoHashesRef.current).size !== photos.length) {
+      newErrors.photos = DUPLICATE_PHOTO_API_MESSAGE;
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
