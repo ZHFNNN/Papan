@@ -38,6 +38,7 @@ model User {
   bookmarks Bookmark[]
   reviews   Review[]
   reviewReplies ReviewReply[]
+  reviewReports ReviewReport[]
   boostPayments BoostPayment[]
 }
 
@@ -360,8 +361,9 @@ model Review {
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   property Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   replies  ReviewReply[]
+  reports  ReviewReport[]
 
-  @@unique([userId, propertyId]) 
+  @@unique([userId, propertyId])
   @@index([propertyId, createdAt])
   @@index([userId])
 }
@@ -378,6 +380,28 @@ model ReviewReply {
 
   @@index([reviewId])
   @@index([ownerId])
+}
+
+// Laporan user terhadap review. Ikut terhapus saat review dihapus admin.
+enum ReviewReportStatus {
+  PENDING
+  DISMISSED
+}
+
+model ReviewReport {
+  id         String             @id @default(cuid())
+  reviewId   String
+  reporterId String
+  reason     String             @db.Text
+  status     ReviewReportStatus @default(PENDING)
+  createdAt  DateTime           @default(now())
+
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter User   @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, reporterId])
+  @@index([status, createdAt])
+  @@index([reporterId])
 }
 
 model Conversation {

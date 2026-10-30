@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StartChatButton from '@/components/chat/StartChatButton';
@@ -11,6 +12,12 @@ import styles from './page.module.css';
 import { formatPrice } from '@/lib/format-price';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from '@/lib/review-photos';
+import { deleteReviewAsAdmin, reportReview } from '@/lib/admin-reviews-api';
+
+/** Alasan default saat admin menghapus langsung dari halaman detail. */
+const ADMIN_QUICK_DELETE_REASON = 'Melanggar ketentuan ulasan';
+const REPORT_REASON_PRESETS = ['Kata kasar / tidak sopan', 'Spam atau promosi', 'Tidak relevan dengan properti', 'Informasi palsu'];
+const MIN_REPORT_REASON = 3;
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -242,9 +249,17 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [reviewDeleteCandidate, setReviewDeleteCandidate] = useState<{ id: string } | null>(null);
+  const [reviewDeleteCandidate, setReviewDeleteCandidate] = useState<{ id: string; asAdmin: boolean } | null>(null);
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'ADMIN';
   const [reviewDeleteLoading, setReviewDeleteLoading] = useState(false);
   const [reviewDeleteError, setReviewDeleteError] = useState<string | null>(null);
+
+  // Report review
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
 
   // Review form
   const [formRating, setFormRating] = useState(0);
@@ -444,8 +459,8 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
   };
 
   // ── Delete own review ────────────────────────────────────────
-  const openDeleteReviewModal = (reviewId: string) => {
-    setReviewDeleteCandidate({ id: reviewId });
+  const openDeleteReviewModal = (reviewId: string, asAdmin = false) => {
+    setReviewDeleteCandidate({ id: reviewId, asAdmin });
     setReviewDeleteError(null);
   };
 
@@ -460,6 +475,12 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
     setReviewDeleteLoading(true);
     setReviewDeleteError(null);
     try {
+      if (reviewDeleteCandidate.asAdmin) {
+        await deleteReviewAsAdmin(reviewDeleteCandidate.id, ADMIN_QUICK_DELETE_REASON);
+        setReviewDeleteCandidate(null);
+        await fetchReviews();
+        return;
+      }
       const res = await fetch(
         `/api/properties/${encodeURIComponent(propertyId)}/reviews/${reviewDeleteCandidate.id}`,
         { method: 'DELETE', credentials: 'include' }
@@ -472,6 +493,44 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
       setReviewDeleteError('Terjadi kesalahan.');
     } finally {
       setReviewDeleteLoading(false);
+    }
+  };
+
+  // ── Report review orang lain ──────────────────────────────────
+  const openReportModal = (reviewId: string) => {
+    if (!currentUser) { router.push('/login'); return; }
+    setReportTargetId(reviewId);
+    setReportReason('');
+  };
+
+  const closeReportModal = () => {
+    if (reportSubmitting) return;
+    setReportTargetId(null);
+  };
+
+  const markReported = (reviewId: string) => {
+    setReportedIds((prev) => new Set(prev).add(reviewId));
+    setReportTargetId(null);
+  };
+
+  const submitReport = async () => {
+    if (!reportTargetId || reportReason.trim().length < MIN_REPORT_REASON) return;
+    setReportSubmitting(true);
+    try {
+      await reportReview(reportTargetId, reportReason.trim());
+      markReported(reportTargetId);
+      toast.success('Laporan terkirim. Admin akan meninjau review ini.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message === 'UNAUTHORIZED') { router.push('/login'); return; }
+      if (message === 'ALREADY_REPORTED') {
+        markReported(reportTargetId);
+        toast('Kamu sudah melaporkan review ini.');
+        return;
+      }
+      toast.error(message || 'Gagal mengirim laporan.');
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
@@ -565,8 +624,12 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
 
       <ConfirmDialog
         open={Boolean(reviewDeleteCandidate)}
-        title="Hapus review?"
-        description="Review kamu akan dihapus dan tidak bisa dikembalikan."
+        title={reviewDeleteCandidate?.asAdmin ? 'Hapus review sebagai admin?' : 'Hapus review?'}
+        description={
+          reviewDeleteCandidate?.asAdmin
+            ? `Review ini akan dihapus permanen dan user diberi tahu dengan alasan "${ADMIN_QUICK_DELETE_REASON}". Untuk alasan lain, gunakan halaman Moderasi Review.`
+            : 'Review kamu akan dihapus dan tidak bisa dikembalikan.'
+        }
         confirmText="Hapus"
         cancelText="Batal"
         loading={reviewDeleteLoading}
@@ -574,6 +637,56 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
         onCancel={closeDeleteReviewModal}
         onConfirm={confirmDeleteReview}
       />
+
+      {reportTargetId && (
+        <div className={styles.reportOverlay} onClick={closeReportModal}>
+          <div
+            className={styles.reportModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Laporkan review"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className={styles.reportTitle}>Laporkan review ini?</p>
+            <p className={styles.reportDesc}>
+              Ceritakan kenapa review ini merugikan. Admin akan meninjau dan memutuskan apakah review dihapus.
+            </p>
+            <div className={styles.reportPresets}>
+              {REPORT_REASON_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`${styles.reportChip} ${reportReason === preset ? styles.reportChipActive : ''}`}
+                  onClick={() => setReportReason(preset)}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+            <textarea
+              className={styles.reportInput}
+              placeholder="Atau tulis alasan sendiri…"
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+            />
+            <div className={styles.reportActions}>
+              <button type="button" className={styles.reportCancelBtn} onClick={closeReportModal} disabled={reportSubmitting}>
+                Batal
+              </button>
+              <button
+                type="button"
+                className={styles.reportSubmitBtn}
+                onClick={submitReport}
+                disabled={reportSubmitting || reportReason.trim().length < MIN_REPORT_REASON}
+              >
+                {reportSubmitting ? 'Mengirim…' : 'Kirim Laporan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={styles.contentArea}>
         <div className={styles.container}>
@@ -824,6 +937,27 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                           title="Hapus ulasan"
                         >
                           Hapus review
+                        </button>
+                      )}
+                      {isAdmin && currentUser?.id !== review.user.id && (
+                        <button
+                          type="button"
+                          className={styles.reviewDeleteBtn}
+                          onClick={() => openDeleteReviewModal(review.id, true)}
+                          title="Hapus ulasan (admin)"
+                        >
+                          Hapus (Admin)
+                        </button>
+                      )}
+                      {!isAdmin && currentUser?.id !== review.user.id && (
+                        <button
+                          type="button"
+                          className={styles.reviewReportBtn}
+                          onClick={() => openReportModal(review.id)}
+                          disabled={reportedIds.has(review.id)}
+                          title="Laporkan ulasan ini ke admin"
+                        >
+                          {reportedIds.has(review.id) ? 'Dilaporkan' : '🚩 Laporkan'}
                         </button>
                       )}
                     </div>
