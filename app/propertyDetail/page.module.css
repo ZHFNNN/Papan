@@ -405,6 +405,51 @@
 }
 .reviewDeleteBtn:hover { background: #fbcbcb; }
 
+.reviewReportBtn {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.reviewReportBtn:hover:not(:disabled) { color: #d32f2f; border-color: #fbcbcb; }
+.reviewReportBtn:disabled { cursor: default; opacity: 0.6; }
+
+/* Dialog laporkan review */
+.reportOverlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.5);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.reportModal {
+  background: #fff; border-radius: 18px; width: min(460px, 100%); padding: 1.4rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.reportTitle { font-size: 17px; font-weight: 700; color: #19263c; margin: 0; }
+.reportDesc { font-size: 13px; color: #4b5563; line-height: 1.6; margin: 0; }
+.reportPresets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.reportChip {
+  padding: 0.4rem 0.85rem; border-radius: 999px; border: 1.5px solid #d1d5db; background: #fff;
+  font-size: 12px; font-weight: 500; color: #6b7280; cursor: pointer; transition: all 0.2s;
+}
+.reportChip:hover { border-color: #19263c; color: #19263c; }
+.reportChipActive { background: #19263c; border-color: #19263c; color: #fff; }
+.reportInput {
+  width: 100%; box-sizing: border-box; border: 1.5px solid #d1d5db; border-radius: 12px;
+  padding: 0.7rem 0.9rem; font: inherit; font-size: 13px; resize: vertical; outline: none;
+}
+.reportInput:focus { border-color: #19263c; }
+.reportActions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.reportCancelBtn, .reportSubmitBtn {
+  border-radius: 999px; padding: 0.55rem 1.2rem; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.reportCancelBtn { background: #fff; border: 1.5px solid #d1d5db; color: #374151; }
+.reportSubmitBtn { background: #9e0c0c; border: none; color: #fff; }
+.reportSubmitBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 .reviewComment { font-size: 14px; color: #444; line-height: 1.7; margin: 0; }
 
 .reviewPhotos { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
