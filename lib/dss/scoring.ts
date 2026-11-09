@@ -21,6 +21,20 @@ const SCORED_CRITERIA = new Map<string, keyof CriteriaWeights>([
   ["FACILITIES", "facilities"],
 ]);
 
+// Rank Order Centroid (ROC): bobot untuk peringkat ke-k dari n kriteria
+// w_k = (1/n) * sum_{j=k..n} (1/j). Untuk n = 3: 0.6111, 0.2778, 0.1111 (total 1).
+export function rocWeights(n: number): number[] {
+  const weights: number[] = [];
+  for (let k = 1; k <= n; k++) {
+    let sum = 0;
+    for (let j = k; j <= n; j++) {
+      sum += 1 / j;
+    }
+    weights.push(sum / n);
+  }
+  return weights;
+}
+
 export function resolveCriteriaWeights(
   rows: { criteria: string; weight: number }[],
 ): { weights: CriteriaWeights; source: CriteriaWeightSource } {
@@ -31,26 +45,40 @@ export function resolveCriteriaWeights(
     return fallback;
   }
 
-  // Kriteria tanpa baris memakai bobot 1, sama dengan @default(1) di schema.
-  const raw: CriteriaWeights = { budget: 1, location: 1, facilities: 1 };
+  // Level prioritas per kriteria (lebih besar = lebih penting).
+  // Kriteria tanpa baris memakai level 1, sama dengan @default(1) di schema.
+  const level: CriteriaWeights = { budget: 1, location: 1, facilities: 1 };
   for (const row of scoredRows) {
     const key = SCORED_CRITERIA.get(row.criteria)!;
-    raw[key] = Number.isFinite(row.weight) ? Math.max(0, row.weight) : 0;
+    level[key] = Number.isFinite(row.weight) ? Math.max(0, row.weight) : 0;
   }
 
-  const total = raw.budget + raw.location + raw.facilities;
-  if (total <= 0) {
+  const keys: (keyof CriteriaWeights)[] = ["budget", "location", "facilities"];
+  if (keys.every((key) => level[key] <= 0)) {
     return fallback;
   }
 
-  return {
-    weights: {
-      budget: raw.budget / total,
-      location: raw.location / total,
-      facilities: raw.facilities / total,
-    },
-    source: "user_criteria_weight",
-  };
+  // Urutkan dari level tertinggi (peringkat 1) ke terendah.
+  const ordered = [...keys].sort((a, b) => level[b] - level[a]);
+  const roc = rocWeights(ordered.length);
+
+  // Level yang sama berbagi peringkat: bobotnya dirata-rata dari posisi yang ditempati.
+  const weights: CriteriaWeights = { budget: 0, location: 0, facilities: 0 };
+  let start = 0;
+  while (start < ordered.length) {
+    let end = start;
+    while (end + 1 < ordered.length && level[ordered[end + 1]] === level[ordered[start]]) {
+      end++;
+    }
+    const slice = roc.slice(start, end + 1);
+    const average = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+    for (let i = start; i <= end; i++) {
+      weights[ordered[i]] = average;
+    }
+    start = end + 1;
+  }
+
+  return { weights, source: "user_criteria_weight" };
 }
 
 export function normalizeBudgetScore(
