@@ -7,6 +7,7 @@ import {
   normalizeGenderScore,
   normalizeLocationScore,
   resolveCriteriaWeights,
+  rocWeights,
   scoreProperty,
 } from "@/lib/dss/scoring";
 
@@ -212,39 +213,41 @@ describe("resolveCriteriaWeights — bobot kriteria per pengguna", () => {
     expect(result.weights).toEqual({ budget: 0.4, location: 0.3, facilities: 0.3 });
   });
 
-  // W2: semua kriteria diisi -> dinormalisasi supaya total = 1
-  it("W2: normalizes user weights so they sum to 1", () => {
+  // W2: urutan prioritas -> bobot ROC (peringkat 1 = 11/18, peringkat 2-3 seri = 7/36)
+  it("W2: gives the top-ranked criterion the ROC rank-1 weight and sums to 1", () => {
     const result = resolveCriteriaWeights([
       { criteria: "BUDGET", weight: 3 },
       { criteria: "LOCATION", weight: 1 },
       { criteria: "FACILITIES", weight: 1 },
     ]);
     expect(result.source).toBe("user_criteria_weight");
-    expect(result.weights.budget).toBeCloseTo(0.6, 5);
-    expect(result.weights.location).toBeCloseTo(0.2, 5);
-    expect(result.weights.facilities).toBeCloseTo(0.2, 5);
+    expect(result.weights.budget).toBeCloseTo(11 / 18, 5);
+    expect(result.weights.location).toBeCloseTo(7 / 36, 5);
+    expect(result.weights.facilities).toBeCloseTo(7 / 36, 5);
+    const total = result.weights.budget + result.weights.location + result.weights.facilities;
+    expect(total).toBeCloseTo(1, 5);
   });
 
-  // W3: kriteria tanpa baris memakai bobot 1 (sama dengan @default(1) di schema)
-  it("W3: uses weight 1 for criteria without a row", () => {
+  // W3: kriteria tanpa baris memakai level 1 (sama dengan @default(1) di schema)
+  it("W3: uses level 1 for criteria without a row", () => {
     const result = resolveCriteriaWeights([{ criteria: "LOCATION", weight: 2 }]);
     expect(result.source).toBe("user_criteria_weight");
-    expect(result.weights.budget).toBeCloseTo(0.25, 5);
-    expect(result.weights.location).toBeCloseTo(0.5, 5);
-    expect(result.weights.facilities).toBeCloseTo(0.25, 5);
+    expect(result.weights.budget).toBeCloseTo(7 / 36, 5);
+    expect(result.weights.location).toBeCloseTo(11 / 18, 5);
+    expect(result.weights.facilities).toBeCloseTo(7 / 36, 5);
   });
 
-  // W4: GENDER belum dihitung -> tidak ikut normalisasi
-  it("W4: ignores the GENDER weight because the criterion is not scored yet", () => {
+  // W4: GENDER belum dihitung -> tidak ikut perankingan
+  it("W4: ignores the GENDER row because the criterion is not scored yet", () => {
     const result = resolveCriteriaWeights([
       { criteria: "BUDGET", weight: 1 },
       { criteria: "LOCATION", weight: 1 },
       { criteria: "FACILITIES", weight: 2 },
       { criteria: "GENDER", weight: 4 },
     ]);
-    expect(result.weights.budget).toBeCloseTo(0.25, 5);
-    expect(result.weights.location).toBeCloseTo(0.25, 5);
-    expect(result.weights.facilities).toBeCloseTo(0.5, 5);
+    expect(result.weights.budget).toBeCloseTo(7 / 36, 5);
+    expect(result.weights.location).toBeCloseTo(7 / 36, 5);
+    expect(result.weights.facilities).toBeCloseTo(11 / 18, 5);
   });
 
   // W5: hanya baris GENDER -> dianggap belum mengatur bobot
@@ -254,14 +257,16 @@ describe("resolveCriteriaWeights — bobot kriteria per pengguna", () => {
     expect(result.weights).toEqual({ budget: 0.4, location: 0.3, facilities: 0.3 });
   });
 
-  // W6: bobot negatif / NaN diperlakukan sebagai 0
-  it("W6: treats negative and NaN weights as 0", () => {
+  // W6: level negatif / NaN diperlakukan sebagai 0 (peringkat terbawah)
+  it("W6: treats negative and NaN levels as 0 and ranks them last", () => {
     const result = resolveCriteriaWeights([
       { criteria: "BUDGET", weight: -2 },
       { criteria: "LOCATION", weight: Number.NaN },
       { criteria: "FACILITIES", weight: 1 },
     ]);
-    expect(result.weights).toEqual({ budget: 0, location: 0, facilities: 1 });
+    expect(result.weights.facilities).toBeCloseTo(11 / 18, 5);
+    expect(result.weights.budget).toBeCloseTo(7 / 36, 5);
+    expect(result.weights.location).toBeCloseTo(7 / 36, 5);
   });
 
   // W7: total bobot efektif 0 -> fallback default (hindari pembagian dengan 0)
@@ -273,6 +278,63 @@ describe("resolveCriteriaWeights — bobot kriteria per pengguna", () => {
     ]);
     expect(result.source).toBe("default");
     expect(result.weights).toEqual({ budget: 0.4, location: 0.3, facilities: 0.3 });
+  });
+});
+
+describe("rocWeights — Rank Order Centroid", () => {
+  // R1: rumus ROC untuk n = 3
+  it("R1: returns 11/18, 5/18, 2/18 for three criteria", () => {
+    const w = rocWeights(3);
+    expect(w[0]).toBeCloseTo(11 / 18, 5);
+    expect(w[1]).toBeCloseTo(5 / 18, 5);
+    expect(w[2]).toBeCloseTo(2 / 18, 5);
+  });
+
+  // R2: total bobot selalu 1 dan menurun menurut peringkat
+  it("R2: sums to 1 and decreases with rank", () => {
+    for (const n of [1, 2, 3, 5]) {
+      const w = rocWeights(n);
+      expect(w.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 5);
+      for (let i = 1; i < w.length; i++) {
+        expect(w[i]).toBeLessThan(w[i - 1]);
+      }
+    }
+  });
+
+  // R3: susunan UI (3 = paling penting, 2 = penting, 1 = biasa) -> ROC penuh
+  it("R3: maps UI levels 3/2/1 to ROC rank 1/2/3", () => {
+    const { weights } = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: 1 },
+      { criteria: "LOCATION", weight: 3 },
+      { criteria: "FACILITIES", weight: 2 },
+    ]);
+    expect(weights.location).toBeCloseTo(11 / 18, 5);
+    expect(weights.facilities).toBeCloseTo(5 / 18, 5);
+    expect(weights.budget).toBeCloseTo(2 / 18, 5);
+  });
+
+  // R4: semua level sama -> bobot rata (1/3 masing-masing)
+  it("R4: gives equal weights when every level is tied", () => {
+    const { weights } = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: 2 },
+      { criteria: "LOCATION", weight: 2 },
+      { criteria: "FACILITIES", weight: 2 },
+    ]);
+    expect(weights.budget).toBeCloseTo(1 / 3, 5);
+    expect(weights.location).toBeCloseTo(1 / 3, 5);
+    expect(weights.facilities).toBeCloseTo(1 / 3, 5);
+  });
+
+  // R5: seri di peringkat 1-2 -> dirata-rata (4/9), peringkat 3 tetap 2/18
+  it("R5: averages ROC weights for tied top ranks", () => {
+    const { weights } = resolveCriteriaWeights([
+      { criteria: "BUDGET", weight: 3 },
+      { criteria: "LOCATION", weight: 3 },
+      { criteria: "FACILITIES", weight: 1 },
+    ]);
+    expect(weights.budget).toBeCloseTo(4 / 9, 5);
+    expect(weights.location).toBeCloseTo(4 / 9, 5);
+    expect(weights.facilities).toBeCloseTo(2 / 18, 5);
   });
 });
 
