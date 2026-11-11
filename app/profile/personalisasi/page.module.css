@@ -763,4 +763,8 @@ display: flex;
     padding: 12px;
     font-size: 14px;
   }
+
+  /* 3 pilihan tipe properti tetap muat satu baris di layar kecil */
+  .genderGroup { gap: 8px; }
+  .genderBtn { padding: 11px 8px; font-size: 13px; }
 }

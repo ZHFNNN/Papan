@@ -15,6 +15,7 @@ interface FormData {
   locationLng: number | null;
   occupation: string;
   budget: string;
+  propertyType: string;
   gender: string;
   preferences: string[];
 }
@@ -23,6 +24,7 @@ interface FormErrors {
   location?: string;
   occupation?: string;
   budget?: string;
+  propertyType?: string;
   gender?: string;
   priorities?: string;
 }
@@ -35,6 +37,7 @@ type PriorityRanking = Record<PriorityTier, CriteriaKey | null>;
 // ── Opsi pilihan ───────────────────────────────────────────────────────────
 const OCCUPATIONS = ['Mahasiswa', 'Karyawan', 'Wiraswasta', 'Freelancer', 'Lainnya'];
 const BUDGETS     = ['0 - 2 juta', '2 - 4 juta', '4 - 6 juta', '6 - 8 juta', '8 juta+'];
+const PROPERTY_TYPES = ['Kosan', 'Rumah', 'Apartemen'];
 const GENDERS     = ['Laki-laki', 'Perempuan'];
 const PREFERENCES = [
   'Furnished',
@@ -77,9 +80,13 @@ export default function PersonalisasiPage() {
     locationLng: null,
     occupation:  'Mahasiswa',
     budget:      '0 - 2 juta',
+    propertyType: '',
     gender:      'Laki-laki',
     preferences: [],
   });
+
+  // Gender hanya relevan untuk kosan (kosan putra/putri), jadi baris gender cuma muncul kalau pilih kosan
+  const isKosan = formData.propertyType === 'Kosan';
 
   const mapEmbedSrc = `https://maps.google.com/maps?q=${formData.locationLat ?? -2.5},${formData.locationLng ?? 118}&z=${formData.locationLat && formData.locationLng ? 15 : 5}&output=embed`;
 
@@ -225,7 +232,8 @@ export default function PersonalisasiPage() {
     if (!formData.location.trim()) newErrors.location   = 'Pilih lokasi lewat peta.';
     if (!formData.occupation)      newErrors.occupation = 'Pilih pekerjaan kamu.';
     if (!formData.budget)          newErrors.budget     = 'Pilih range budget kamu.';
-    if (!formData.gender)          newErrors.gender     = 'Pilih gender kamu.';
+    if (!formData.propertyType)    newErrors.propertyType = 'Pilih tipe properti yang kamu cari.';
+    if (isKosan && !formData.gender) newErrors.gender   = 'Pilih gender kamu.';
     if (!ranking.high || !ranking.medium || !ranking.low) {
       newErrors.priorities = 'Susun ketiga kriteria ke tingkat Paling penting, Penting, dan Biasa saja.';
     }
@@ -249,7 +257,15 @@ export default function PersonalisasiPage() {
       const res = await fetch('/api/personalisasi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, priorities }),
+        // propertyType hanya untuk tampilan form; gender dikirim null kalau bukan kosan
+        body: JSON.stringify({
+          location:    formData.location,
+          occupation:  formData.occupation,
+          budget:      formData.budget,
+          gender:      isKosan ? formData.gender : null,
+          preferences: formData.preferences,
+          priorities,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -379,23 +395,52 @@ export default function PersonalisasiPage() {
                 </div>
               </div>
 
-              {/* Gender */}
-              <p className={styles.sectionLabel}>Gender</p>
+              {/* Tipe properti */}
+              <p className={styles.sectionLabel}>Tipe properti yang dicari</p>
               <div className={styles.fieldGroup}>
-                <div className={styles.genderGroup}>
-                  {GENDERS.map((g) => (
+                <div className={styles.genderGroup} role="radiogroup" aria-label="Tipe properti">
+                  {PROPERTY_TYPES.map((type) => (
                     <button
-                      key={g}
+                      key={type}
                       type="button"
-                      onClick={() => setFormData({ ...formData, gender: g })}
-                      className={`${styles.genderBtn} ${formData.gender === g ? styles.genderBtnActive : styles.genderBtnInactive}`}
+                      role="radio"
+                      aria-checked={formData.propertyType === type}
+                      onClick={() => {
+                        setFormData({ ...formData, propertyType: type });
+                        setErrors((prev) => ({ ...prev, propertyType: undefined, gender: undefined }));
+                      }}
+                      className={`${styles.genderBtn} ${formData.propertyType === type ? styles.genderBtnActive : styles.genderBtnInactive}`}
                     >
-                      {g}
+                      {type}
                     </button>
                   ))}
                 </div>
-                {errors.gender && <p className={styles.errorText}>{errors.gender}</p>}
+                {errors.propertyType && <p className={styles.errorText}>{errors.propertyType}</p>}
               </div>
+
+              {/* Gender — hanya untuk kosan */}
+              {isKosan && (
+                <>
+                  <p className={styles.sectionLabel}>Gender</p>
+                  <div className={styles.fieldGroup}>
+                    <div className={styles.genderGroup} role="radiogroup" aria-label="Gender">
+                      {GENDERS.map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          role="radio"
+                          aria-checked={formData.gender === g}
+                          onClick={() => setFormData({ ...formData, gender: g })}
+                          className={`${styles.genderBtn} ${formData.gender === g ? styles.genderBtnActive : styles.genderBtnInactive}`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                    {errors.gender && <p className={styles.errorText}>{errors.gender}</p>}
+                  </div>
+                </>
+              )}
 
               {/* Preferensi */}
               <p className={styles.sectionLabel}>Preferensi fasilitas</p>
@@ -549,9 +594,17 @@ export default function PersonalisasiPage() {
                     <span className={styles.summaryVal}>{formData.budget || '—'}</span>
                   </div>
                   <div className={styles.summaryRow}>
-                    <span className={styles.summaryKey}>Gender</span>
-                    <span className={styles.summaryVal}>{formData.gender || '—'}</span>
+                    <span className={styles.summaryKey}>Tipe properti</span>
+                    <span className={`${styles.summaryVal} ${!formData.propertyType ? styles.summaryValEmpty : ''}`}>
+                      {formData.propertyType || 'Belum dipilih'}
+                    </span>
                   </div>
+                  {isKosan && (
+                    <div className={styles.summaryRow}>
+                      <span className={styles.summaryKey}>Gender</span>
+                      <span className={styles.summaryVal}>{formData.gender || '—'}</span>
+                    </div>
+                  )}
                   <div className={styles.summaryRow}>
                     <span className={styles.summaryKey}>Lokasi</span>
                     <span className={`${styles.summaryVal} ${!formData.location ? styles.summaryValEmpty : ''}`}>
