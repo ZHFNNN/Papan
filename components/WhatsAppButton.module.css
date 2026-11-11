@@ -1,0 +1,30 @@
+/* components/WhatsAppButton.module.css */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: #25d366;
+  color: #ffffff;
+  border: none;
+  border-radius: 50px;
+  padding: 0.7rem;
+  margin-bottom: 0.45rem;
+  font-family: "Poppins", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn:hover {
+  background: #1ebe5b;
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
