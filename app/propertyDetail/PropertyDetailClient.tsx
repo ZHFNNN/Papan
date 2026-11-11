@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StartChatButton from '@/components/chat/StartChatButton';
+import WhatsAppButton from '@/components/WhatsAppButton';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
@@ -736,6 +737,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
           {prop.ownerId ? (
             <StartChatButton propertyId={prop.id} ownerId={prop.ownerId} variant="light" />
           ) : null}
+
+          {/* TODO: ganti nomor dummy dengan owner.phoneNumber dari API */}
+          <WhatsAppButton phone="6281234567890" propertyTitle={prop.title} />
 
               <button
                 className={`${styles.btnOutline} ${bookmarked ? styles.btnOutlineActive : ''}`}
