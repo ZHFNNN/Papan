@@ -95,14 +95,14 @@ describe("criteriaRowsToPriorities — isi awal form dari database", () => {
 });
 
 describe("prioritas -> bobot DSS", () => {
-  // I1: default UI (3/2/2) menghasilkan bobot yang dipakai scoring
-  it("I1: turns saved priorities into normalized DSS weights", () => {
+  // I1: default UI (3/2/2) -> budget peringkat 1, location & facilities seri di peringkat 2-3
+  it("I1: turns saved priorities into ROC DSS weights", () => {
     const rows = prioritiesToCriteriaRows({ budget: 3, location: 2, facilities: 2 });
     const { weights, source } = resolveCriteriaWeights(rows);
-    // 3 / (3 + 2 + 2) = 0.4286, 2 / 7 = 0.2857
+    // ROC n=3: 11/18 untuk peringkat 1, rata-rata peringkat 2-3 = (5/18 + 2/18) / 2 = 7/36
     expect(source).toBe("user_criteria_weight");
-    expect(weights.budget).toBeCloseTo(3 / 7, 5);
-    expect(weights.location).toBeCloseTo(2 / 7, 5);
-    expect(weights.facilities).toBeCloseTo(2 / 7, 5);
+    expect(weights.budget).toBeCloseTo(11 / 18, 5);
+    expect(weights.location).toBeCloseTo(7 / 36, 5);
+    expect(weights.facilities).toBeCloseTo(7 / 36, 5);
   });
 });

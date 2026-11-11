@@ -50,13 +50,20 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   // Validasi minimal
-  const { location, occupation, budget, gender, preferences, priorities } = body;
-  if (!location || !occupation || !budget || !gender) {
+  const { location, occupation, budget, gender: rawGender, preferences, priorities } = body;
+  if (!location || !occupation || !budget) {
     return NextResponse.json(
       { message: 'Semua field wajib diisi.' },
       { status: 400 }
     );
   }
+
+  // Gender hanya berlaku untuk kosan, jadi opsional. Kosong/tidak dikirim disimpan null
+  // (DSS menganggapnya netral), dan form yang disimpan tanpa gender menghapus gender lama.
+  if (rawGender != null && typeof rawGender !== 'string') {
+    return NextResponse.json({ message: 'Gender tidak valid.' }, { status: 400 });
+  }
+  const gender = rawGender?.trim() || null;
 
   // priorities opsional: kalau tidak dikirim, prioritas DSS yang lama tidak diubah
   const parsedPriorities = parsePriorities(priorities);

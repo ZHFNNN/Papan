@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import toast from "react-hot-toast"; // Import Toast
 
 export default function RegisterPage() {
@@ -16,6 +17,11 @@ export default function RegisterPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Daftar pakai Google = login Google; akun baru dibuat otomatis oleh PrismaAdapter
+  const handleGoogleSignUp = async () => {
+    await signIn("google", { callbackUrl: "/auth/post-login" });
+  };
 
   const handleRegister = async () => {
     // 1. Validasi frontend (Mencegah request sia-sia ke server)
@@ -149,7 +155,7 @@ export default function RegisterPage() {
           {isLoading ? "Memproses..." : "Sign Up"}
         </button>
 
-        <button className={styles.googleBtn}>
+        <button type="button" className={styles.googleBtn} onClick={handleGoogleSignUp}>
           <GoogleIcon />
           <span>Google</span>
         </button>

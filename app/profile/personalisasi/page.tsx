@@ -18,6 +18,7 @@ interface FormData {
   locationLng: number | null;
   occupation: string;
   budget: string;
+  propertyType: string;
   gender: string;
   preferences: string[];
 }
@@ -26,12 +27,14 @@ interface FormErrors {
   location?: string;
   occupation?: string;
   budget?: string;
+  propertyType?: string;
   gender?: string;
 }
 
 // ── Opsi pilihan ───────────────────────────────────────────────────────────
 const OCCUPATIONS = ['Mahasiswa', 'Karyawan', 'Wiraswasta', 'Freelancer', 'Lainnya'];
 const BUDGETS     = ['0 - 2 juta', '2 - 4 juta', '4 - 6 juta', '6 - 8 juta', '8 juta+'];
+const PROPERTY_TYPES = ['Kosan', 'Rumah', 'Apartemen'];
 const GENDERS     = ['Laki-laki', 'Perempuan'];
 const PREFERENCES = [
   'Furnished',
@@ -59,9 +62,13 @@ export default function PersonalisasiPage() {
     locationLng: null,
     occupation:  'Mahasiswa',
     budget:      '0 - 2 juta',
+    propertyType: '',
     gender:      'Laki-laki',
     preferences: [],
   });
+
+  // Gender hanya relevan untuk kosan (kosan putra/putri), jadi baris gender cuma muncul kalau pilih kosan
+  const isKosan = formData.propertyType === 'Kosan';
 
   const [errors, setErrors]             = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting]     = useState(false);
@@ -124,6 +131,8 @@ export default function PersonalisasiPage() {
           location: data.location ?? prev.location,
           occupation: data.occupation ?? prev.occupation,
           budget: budgetLabel,
+          // Tipe properti belum disimpan di DB; gender tersimpan berarti sebelumnya pilih kosan
+          propertyType: data.gender ? 'Kosan' : prev.propertyType,
           gender: data.gender ?? prev.gender,
           preferences: prefs,
         }));
@@ -176,7 +185,8 @@ export default function PersonalisasiPage() {
     if (!formData.location.trim()) newErrors.location   = 'Pilih lokasi lewat peta.';
     if (!formData.occupation)      newErrors.occupation = 'Pilih pekerjaan kamu.';
     if (!formData.budget)          newErrors.budget     = 'Pilih range budget kamu.';
-    if (!formData.gender)          newErrors.gender     = 'Pilih gender kamu.';
+    if (!formData.propertyType)    newErrors.propertyType = 'Pilih tipe properti yang kamu cari.';
+    if (isKosan && !formData.gender) newErrors.gender   = 'Pilih gender kamu.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -192,7 +202,14 @@ export default function PersonalisasiPage() {
       const res = await fetch('/api/personalisasi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        // propertyType hanya untuk tampilan form; gender dikirim null kalau bukan kosan
+        body: JSON.stringify({
+          location:    formData.location,
+          occupation:  formData.occupation,
+          budget:      formData.budget,
+          gender:      isKosan ? formData.gender : null,
+          preferences: formData.preferences,
+        }),
       });
 
       if (!res.ok) {
@@ -368,25 +385,54 @@ export default function PersonalisasiPage() {
                 {errors.budget && <p className={styles.errorText}>{errors.budget}</p>}
               </div>
 
-              {/* Gender */}
+              {/* Tipe properti */}
               <div className={styles.fieldGroup}>
-                <label className={styles.label}>Gender</label>
-                <div className={styles.genderGroup}>
-                  {GENDERS.map((g) => (
+                <label className={styles.label}>Tipe properti yang dicari</label>
+                <div className={styles.genderGroup} role="radiogroup" aria-label="Tipe properti">
+                  {PROPERTY_TYPES.map((type) => (
                     <button
-                      key={g}
+                      key={type}
                       type="button"
-                      onClick={() => setFormData({ ...formData, gender: g })}
+                      role="radio"
+                      aria-checked={formData.propertyType === type}
+                      onClick={() => {
+                        setFormData({ ...formData, propertyType: type });
+                        setErrors((prev) => ({ ...prev, propertyType: undefined, gender: undefined }));
+                      }}
                       className={`${styles.genderBtn} ${
-                        formData.gender === g ? styles.genderBtnActive : styles.genderBtnInactive
+                        formData.propertyType === type ? styles.genderBtnActive : styles.genderBtnInactive
                       }`}
                     >
-                      {g}
+                      {type}
                     </button>
                   ))}
                 </div>
-                {errors.gender && <p className={styles.errorText}>{errors.gender}</p>}
+                {errors.propertyType && <p className={styles.errorText}>{errors.propertyType}</p>}
               </div>
+
+              {/* Gender — hanya untuk kosan */}
+              {isKosan && (
+                <div className={styles.fieldGroup}>
+                  <label className={styles.label}>Gender</label>
+                  <div className={styles.genderGroup} role="radiogroup" aria-label="Gender">
+                    {GENDERS.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        role="radio"
+                        aria-checked={formData.gender === g}
+                        onClick={() => setFormData({ ...formData, gender: g })}
+                        className={`${styles.genderBtn} ${
+                          formData.gender === g ? styles.genderBtnActive : styles.genderBtnInactive
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                  {errors.gender && <p className={styles.errorText}>{errors.gender}</p>}
+                </div>
+              )}
 
               {/* Preferensi */}
               <div className={styles.fieldGroup}>

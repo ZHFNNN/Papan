@@ -52,6 +52,10 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  // Error login (mis. OAuthAccountNotLinked) diarahkan ke halaman login kita, bukan halaman default NextAuth
+  pages: {
+    error: "/login",
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
