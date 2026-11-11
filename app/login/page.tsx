@@ -35,6 +35,9 @@ function LoginPageContent() {
     if (searchParams.get("verification") === "invalid") {
       toast.error("Tautan verifikasi tidak valid atau sudah kedaluwarsa. Kirim ulang lewat tautan di bawah kolom password.");
     }
+    if (searchParams.get("error") === "OAuthAccountNotLinked") {
+      toast.error("Email ini sudah terdaftar dengan password. Login pakai email & password ya.", { duration: 6000 });
+    }
   }, [searchParams]);
 
   const handleResendVerification = async () => {

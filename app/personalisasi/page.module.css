@@ -417,6 +417,12 @@
 .genderBtnInactive { background: transparent; color: rgba(25, 38, 60, 0.6); }
 .genderBtnInactive:hover { background: rgba(25, 38, 60, 0.05); border-color: rgba(25, 38, 60, 0.35); color: #19263c; }
 
+/* 3 pilihan tipe properti tetap muat satu baris di layar kecil */
+@media (max-width: 480px) {
+  .genderGroup { gap: 8px; }
+  .genderBtn { padding: 11px 8px; font-size: 13px; }
+}
+
 /* ── Preference Tags ─────────────────────────────────────────────────────── */
 .prefGrid {
   display: flex;
