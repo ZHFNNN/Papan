@@ -15,6 +15,7 @@ import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import CardImageCarousel from '@/components/CardImageCarousel';
 import { type ApiProperty, type PropertyCardData, mapApiPropertyToCard } from '@/types/property';
 import styles from './Kategoripage.module.css';
+import Icon from '@/components/Icon';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -199,9 +200,9 @@ function ListCard({ prop }: { prop: PropertyCardData }) {
             <span>{prop.lokasi}</span>
           </div>
           <div className={styles.lcStats}>
-            {prop.luas !== '-' && <span>📐 {prop.luas}</span>}
-            {prop.kt !== '-' && <span>🛏 {prop.kt} Kamar Tidur</span>}
-            {prop.km !== '-' && <span>🚿 {prop.km} Kamar Mandi</span>}
+            {prop.luas !== '-' && <span><Icon name="area" /> {prop.luas}</span>}
+            {prop.kt !== '-' && <span><Icon name="bed" /> {prop.kt} Kamar Tidur</span>}
+            {prop.km !== '-' && <span><Icon name="bath" /> {prop.km} Kamar Mandi</span>}
           </div>
           {prop.fasilitas.length > 0 && (
             <div className={styles.lcFasilitas}>
@@ -652,7 +653,7 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
                 </div>
               ) : filtered.length === 0 ? (
                 <div className={styles.emptyState}>
-                  <div className={styles.emptyIcon}>🏠</div>
+                  <div className={styles.emptyIcon}><Icon name="home" /></div>
                   <p className={styles.emptyTitle}>Tidak ada properti</p>
                   <p className={styles.emptySub}>Coba ubah atau hapus filter yang aktif</p>
                   <button className={styles.emptyBtn} onClick={clearAllFilters}>Hapus semua filter</button>
@@ -687,7 +688,7 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
                 </div>
               ) : filtered.length === 0 ? (
                 <div className={styles.emptyState}>
-                  <div className={styles.emptyIcon}>🏠</div>
+                  <div className={styles.emptyIcon}><Icon name="home" /></div>
                   <p className={styles.emptyTitle}>Tidak ada properti</p>
                   <p className={styles.emptySub}>Coba ubah atau hapus filter yang aktif</p>
                   <button className={styles.emptyBtn} onClick={clearAllFilters}>Hapus semua filter</button>
@@ -757,7 +758,7 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
                 />
                 {/* Overlay tip */}
                 <div className={styles.mapTip}>
-                  💡 Klik properti di sebelah kiri untuk melihat detailnya
+                  Klik properti di sebelah kiri untuk melihat detailnya
                 </div>
               </div>
             </div>

@@ -12,6 +12,7 @@ import {
 } from '@/lib/property-input';
 import { DUPLICATE_PHOTO_API_MESSAGE, duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
+import Icon from '@/components/Icon';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -455,7 +456,7 @@ export default function EditPropertyPage() {
   }
 
   if (loadError) {
-    return <div className={styles.contentArea}><div className={styles.submitErrorBanner}>⚠️ {loadError}</div></div>;
+    return <div className={styles.contentArea}><div className={styles.submitErrorBanner}>{loadError}</div></div>;
   }
 
   return (
@@ -489,7 +490,7 @@ export default function EditPropertyPage() {
             >
               {form.address ? (
                 <>
-                  <span className={styles.locationIcon}>📍</span>
+                  <span className={styles.locationIcon}><Icon name="mapPin" /></span>
                   <span className={styles.locationValue}>{form.address}</span>
                   <button type="button" className={styles.changeLocationBtn} onClick={(e) => { e.stopPropagation(); setShowMap(true); }}>Ganti</button>
                 </>
@@ -730,7 +731,7 @@ export default function EditPropertyPage() {
         </div>
       </div>
 
-      {submitError && <div className={styles.submitErrorBanner}>⚠️ {submitError}</div>}
+      {submitError && <div className={styles.submitErrorBanner}>{submitError}</div>}
 
       <button className={styles.submitBtn} onClick={handleSubmit} disabled={isSubmitting}>
         {isSubmitting ? (

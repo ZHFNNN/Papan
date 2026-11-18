@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from './page.module.css';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
+import Icon from '@/components/Icon';
 
 // Dummy data tidak lagi digunakan, sekarang menggunakan API
 type BookmarkedProperty = {
@@ -67,7 +68,7 @@ function BookmarkCard({
           />
         ) : (
           <div className={styles.cardImgFallback}>
-            <span>🏠</span>
+            <Icon name="home" />
           </div>
         )}
       </div>
@@ -189,13 +190,13 @@ export default function BookmarkPage() {
             </div>
           ) : error ? (
             <div className={styles.emptyState}>
-              <p className={styles.emptyIcon}>⚠️</p>
+              <p className={styles.emptyIcon}><Icon name="alert" /></p>
               <p className={styles.emptyTitle}>Terjadi kesalahan</p>
               <p className={styles.emptyDesc}>{error}</p>
             </div>
           ) : bookmarks.length === 0 ? (
             <div className={styles.emptyState}>
-              <p className={styles.emptyIcon}>🔖</p>
+              <p className={styles.emptyIcon}><Icon name="bookmark" /></p>
               <p className={styles.emptyTitle}>Belum ada bookmark</p>
               <p className={styles.emptyDesc}>
                 Tandai properti favoritmu agar mudah ditemukan kembali.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/require-user';
+import { getCurrentUserSession, requireAuth } from '@/lib/require-user';
 import { MAX_REVIEW_PHOTOS, isReviewPhotoUrl } from '@/lib/review-photos';
 
 type RouteContext = {
@@ -76,6 +76,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
     repliesByReview.set(reply.reviewId, list);
   });
 
+  // Review yang sedang dilaporkan user yang login (laporan PENDING), untuk status tombol "Laporkan"
+  const viewerId = (await getCurrentUserSession())?.user?.id;
+  const reportedByViewer = viewerId && reviewIds.length
+    ? new Set(
+        (await prisma.reviewReport.findMany({
+          where: { reporterId: viewerId, status: 'PENDING', reviewId: { in: reviewIds } },
+          select: { reviewId: true },
+        })).map((report) => report.reviewId),
+      )
+    : new Set<string>();
+
   const totalReviews = reviews.length;
   const avgRating = totalReviews
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
@@ -102,6 +113,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
           owner: ownerMap.get(reply.ownerId) ?? { id: reply.ownerId, name: null, username: null, image: null },
         })),
         user: userMap.get(review.userId) ?? { id: review.userId, name: null, username: null, image: null },
+        reportedByMe: reportedByViewer.has(review.id),
       })),
     },
   });

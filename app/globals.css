@@ -12,11 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Tampilan PAPAN hanya punya tema terang. Mode gelap bawaan template dihapus karena
+   membuat teks (tombol, textarea) jadi putih di atas latar putih. */
+:root {
+  color-scheme: light;
 }
 
 body {

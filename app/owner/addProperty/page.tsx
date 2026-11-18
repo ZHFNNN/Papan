@@ -7,6 +7,7 @@ import type { PickedLocation } from '@/components/MapPicker';
 import { KOSAN_GENDER_OPTIONS, KOSAN_GENDER_REQUIRED_MESSAGE, type KosanGenderTarget } from '@/lib/property-input';
 import { DUPLICATE_PHOTO_API_MESSAGE, duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
+import Icon from '@/components/Icon';
 
 const MapPicker = lazy(() => import('@/components/MapPicker'));
 
@@ -348,7 +349,7 @@ export default function AddPropertyPage() {
               >
                 {form.address ? (
                   <>
-                    <span className={styles.locationIcon}>📍</span>
+                    <span className={styles.locationIcon}><Icon name="mapPin" /></span>
                     <span className={styles.locationValue}>{form.address}</span>
                     <button
                       type="button"
@@ -615,7 +616,7 @@ export default function AddPropertyPage() {
         {/* Error Banner */}
         {submitError && (
           <div className={styles.submitErrorBanner}>
-            ⚠️ {submitError}
+            {submitError}
           </div>
         )}
 

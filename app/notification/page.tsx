@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import styles from './page.module.css';
+import Icon from '@/components/Icon';
 
 type NotifType = 'bookmark' | 'payment' | 'promo' | 'general';
 
@@ -146,7 +147,7 @@ export default function NotificationPage() {
               <p>Loading...</p>
             ) : notifications.length === 0 ? (
               <div className={styles.empty}>
-                <span className={styles.emptyIcon}>🔔</span>
+                <span className={styles.emptyIcon}><Icon name="bell" /></span>
                 <p>Belum ada notifikasi</p>
               </div>
             ) : (
@@ -206,7 +207,7 @@ export default function NotificationPage() {
                               gap: 6,
                             }}
                           >
-                            🏷️ Atur Promo Sekarang
+                            Atur Promo Sekarang
                           </button>
                         )}
                       </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import styles from './page.module.css';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { BOOST_PACKAGES, type BoosterPackage } from '@/lib/booster';
+import Icon from '@/components/Icon';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ function CartDrawer({
 
         {cart.length === 0 ? (
           <div className={styles.drawerEmpty}>
-            <div className={styles.drawerEmptyIcon}>🛒</div>
+            <div className={styles.drawerEmptyIcon}><Icon name="cart" /></div>
             <p className={styles.drawerEmptyText}>Keranjang kamu masih kosong.</p>
             <button className={styles.drawerEmptyBtn} onClick={onClose}>+ Tambah Booster</button>
           </div>
@@ -202,10 +203,10 @@ function CartDrawer({
                       </div>
                       <div className={styles.drawerItemActions}>
                         <button className={styles.drawerEditBtn} onClick={() => { setEditingIdx(idx); setEditMode('package'); }}>
-                          ✏ Ganti Paket
+                          Ganti Paket
                         </button>
                         <button className={styles.drawerEditBtn} onClick={() => { setEditingIdx(idx); setEditMode('property'); }}>
-                          🏠 Ganti Properti
+                          Ganti Properti
                         </button>
                       </div>
                     </>
@@ -351,14 +352,14 @@ function StepProperty({ properties, selectedPkg, isLoading, onAddToCart, cartCou
                 <div className={styles.propThumb}>
                   {prop.imageUrls?.length > 0
                     ? <img src={optimizeImage(prop.imageUrls[0], IMAGE_WIDTH.thumb * 2)} alt={prop.title} className={styles.propImg} loading="lazy" decoding="async" />
-                    : <div className={styles.propImgPlaceholder}>🏠</div>}
+                    : <div className={styles.propImgPlaceholder}><Icon name="home" /></div>}
                 </div>
                 <div className={styles.propInfo}>
                   <h3 className={styles.propTitle}>{prop.title}</h3>
-                  {prop.city && <p className={styles.propAddress}>📍 {prop.address ? `${prop.address}, ` : ''}{prop.city}</p>}
+                  {prop.city && <p className={styles.propAddress}><Icon name="mapPin" /> {prop.address ? `${prop.address}, ` : ''}{prop.city}</p>}
                   <p className={styles.propPrice}>{formatRupiah(Number(prop.price))}</p>
                   <p className={styles.propViews}>{prop.views ?? 0} views</p>
-                  {prop.isBoosted && <span className={styles.boostedTag}>🚀 Sedang Diboost</span>}
+                  {prop.isBoosted && <span className={styles.boostedTag}>Sedang Diboost</span>}
                 </div>
                 <button
                   className={`${styles.addCartBtn} ${inCart ? styles.addCartBtnInCart : ''}`}

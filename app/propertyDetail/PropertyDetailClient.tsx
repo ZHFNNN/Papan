@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import StartChatButton from '@/components/chat/StartChatButton';
+import WhatsAppButton from '@/components/WhatsAppButton';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
@@ -13,6 +14,7 @@ import { formatPrice } from '@/lib/format-price';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from '@/lib/review-photos';
 import { deleteReviewAsAdmin, reportReview } from '@/lib/admin-reviews-api';
+import Icon from '@/components/Icon';
 
 /** Alasan default saat admin menghapus langsung dari halaman detail. */
 const ADMIN_QUICK_DELETE_REASON = 'Melanggar ketentuan ulasan';
@@ -63,6 +65,8 @@ type Review = {
   createdAt: string;
   photos: ReviewPhoto[];
   replies?: ReviewReply[];
+  /** true kalau user yang login punya laporan yang masih menunggu keputusan admin */
+  reportedByMe?: boolean;
   user: {
     id: string;
     name: string | null;
@@ -737,6 +741,9 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
             <StartChatButton propertyId={prop.id} ownerId={prop.ownerId} variant="light" />
           ) : null}
 
+          {/* TODO: ganti nomor dummy dengan owner.phoneNumber dari API */}
+          <WhatsAppButton phone="6281234567890" propertyTitle={prop.title} />
+
               <button
                 className={`${styles.btnOutline} ${bookmarked ? styles.btnOutlineActive : ''}`}
                 onClick={handleBookmark}
@@ -756,7 +763,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                     />
                   ) : (
-                    <span>👤</span>
+                    <Icon name="user" />
                   )}
                 </div>
                 <div className={styles.agentInfo}>
@@ -865,7 +872,7 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                       className={styles.photoAddBtn}
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <span className={styles.photoAddIcon}>📷</span>
+                      <span className={styles.photoAddIcon}><Icon name="camera" /></span>
                       <span className={styles.photoAddText}>Tambah Foto</span>
                     </button>
                   )}
@@ -954,10 +961,10 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
                           type="button"
                           className={styles.reviewReportBtn}
                           onClick={() => openReportModal(review.id)}
-                          disabled={reportedIds.has(review.id)}
+                          disabled={review.reportedByMe || reportedIds.has(review.id)}
                           title="Laporkan ulasan ini ke admin"
                         >
-                          {reportedIds.has(review.id) ? 'Dilaporkan' : '🚩 Laporkan'}
+                          {review.reportedByMe || reportedIds.has(review.id) ? 'Dilaporkan' : <><Icon name="flag" /> Laporkan</>}
                         </button>
                       )}
                     </div>

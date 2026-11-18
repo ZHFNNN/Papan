@@ -35,7 +35,7 @@ async function makePrivate(publicId: string) {
 
 async function main() {
   const apply = process.argv.includes('--apply');
-  console.log(apply ? '🔒 Mode APPLY: foto akan dipindahkan.' : '🔍 Mode DRY-RUN: tidak ada yang diubah.');
+  console.log(apply ? 'Mode APPLY: foto akan dipindahkan.' : 'Mode DRY-RUN: tidak ada yang diubah.');
 
   const submissions = await prisma.kycSubmission.findMany({
     select: { id: true, ktpImageUrl: true, selfieImageUrl: true },
@@ -57,7 +57,7 @@ async function main() {
 
       const parsed = parseLegacyCloudinaryUrl(value);
       if (!parsed) {
-        console.warn(`⚠️  ${submission.id}.${field}: bukan URL Cloudinary, cek manual -> ${value}`);
+        console.warn(`${submission.id}.${field}: bukan URL Cloudinary, cek manual -> ${value}`);
         manual++;
         continue;
       }
@@ -74,10 +74,10 @@ async function main() {
           where: { id: submission.id },
           data: { [field]: parsed.publicId },
         });
-        console.log(`✅ ${submission.id}.${field}: ${parsed.publicId}`);
+        console.log(`${submission.id}.${field}: ${parsed.publicId}`);
         migrated++;
       } catch (error) {
-        console.error(`❌ ${submission.id}.${field}:`, error);
+        console.error(`${submission.id}.${field}:`, error);
         failed++;
       }
     }

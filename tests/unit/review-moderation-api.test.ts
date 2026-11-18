@@ -93,6 +93,12 @@ vi.mock("@/lib/prisma", () => {
         db.reports.push(row);
         return row;
       },
+      update: async ({ where, data }: { where: { id: string }; data: Partial<ReportRow> }) => {
+        const report = db.reports.find((r) => r.id === where.id);
+        if (!report) throw new Error("Record to update not found.");
+        Object.assign(report, data);
+        return report;
+      },
       // Bentuk hasil sama dengan select di GET /api/admin/review-reports
       findMany: async ({ where }: { where: { status: ReportStatus } }) =>
         db.reports
@@ -341,6 +347,18 @@ describe("POST /api/reviews/[id]/report — user melaporkan review", () => {
     expect(res.status).toBe(409);
     expect(typeof (await res.json()).message).toBe("string");
     expect(db.reports).toHaveLength(1);
+  });
+
+  // P7: laporan yang sudah ditolak admin boleh diajukan lagi dan masuk antrean admin lagi
+  it("P7: re-opens a dismissed report with the new reason", async () => {
+    expect((await reportReview({ reason: "Spam atau promosi" })).status).toBe(201);
+    db.reports[0].status = "DISMISSED";
+
+    const res = await reportReview({ reason: "Kata kasar" });
+
+    expect(res.status).toBe(201);
+    expect(db.reports).toHaveLength(1);
+    expect(db.reports[0]).toMatchObject({ reason: "Kata kasar", status: "PENDING" });
   });
 });
 

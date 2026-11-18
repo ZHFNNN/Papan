@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
+import Icon, { type IconName } from '@/components/Icon';
 
 export default function ContactPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -23,10 +24,10 @@ export default function ContactPage() {
   };
 
   const contacts = [
-    { icon: '📞', label: 'Telepon', value: '+62817 5683 6421', sub: 'Senin – Jumat, 08.00 – 17.00 WIB' },
-    { icon: '📧', label: 'Email', value: 'support@papan.id', sub: 'Balasan dalam 1×24 jam kerja' },
-    { icon: '📍', label: 'Kantor', value: 'Jatinangor, Sumedang', sub: 'Jawa Barat, Indonesia 45363' },
-    { icon: '💬', label: 'Live Chat', value: 'Tersedia di aplikasi', sub: 'Respon cepat via WhatsApp' },
+    { icon: 'phone' as IconName, label: 'Telepon', value: '+62817 5683 6421', sub: 'Senin – Jumat, 08.00 – 17.00 WIB' },
+    { icon: 'mail' as IconName, label: 'Email', value: 'support@papan.id', sub: 'Balasan dalam 1×24 jam kerja' },
+    { icon: 'mapPin' as IconName, label: 'Kantor', value: 'Jatinangor, Sumedang', sub: 'Jawa Barat, Indonesia 45363' },
+    { icon: 'message' as IconName, label: 'Live Chat', value: 'Tersedia di aplikasi', sub: 'Respon cepat via WhatsApp' },
   ];
 
   return (
@@ -48,7 +49,7 @@ export default function ContactPage() {
 
             {/* Header */}
             <div className={styles.pageHeader}>
-              <div className={styles.headerIcon}>📬</div>
+              <div className={styles.headerIcon}><Icon name="inbox" /></div>
               <div>
                 <h1 className={styles.pageTitle}>Hubungi Kami</h1>
                 <p className={styles.pageSubtitle}>Ada pertanyaan? Tim kami siap membantu kamu</p>
@@ -59,7 +60,7 @@ export default function ContactPage() {
             <div className={styles.contactGrid}>
               {contacts.map((c) => (
                 <div key={c.label} className={styles.contactCard}>
-                  <div className={styles.contactIcon}>{c.icon}</div>
+                  <div className={styles.contactIcon}><Icon name={c.icon} /></div>
                   <div>
                     <p className={styles.contactLabel}>{c.label}</p>
                     <p className={styles.contactValue}>{c.value}</p>
@@ -72,7 +73,7 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div className={styles.formCard}>
               <div className={styles.cardHeader}>
-                <span className={styles.cardIcon}>✉️</span>
+                <span className={styles.cardIcon}><Icon name="send" /></span>
                 <h2 className={styles.cardTitle}>Kirim Pesan</h2>
               </div>
 

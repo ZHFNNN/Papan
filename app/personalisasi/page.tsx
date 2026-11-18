@@ -4,6 +4,7 @@ import { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
+import Icon, { type IconName } from '@/components/Icon';
 
 // MapPicker di-import secara lazy supaya Leaflet tidak di-load pas SSR
 const MapPicker = lazy(() => import('@/components/MapPicker'));
@@ -49,10 +50,10 @@ const PREFERENCES = [
   'Dekat transportasi umum',
 ];
 
-const CRITERIA: { key: CriteriaKey; label: string; icon: string }[] = [
-  { key: 'budget',     label: 'Budget',    icon: '💰' },
-  { key: 'location',   label: 'Lokasi',    icon: '📍' },
-  { key: 'facilities', label: 'Fasilitas', icon: '🛋️' },
+const CRITERIA: { key: CriteriaKey; label: string; icon: IconName }[] = [
+  { key: 'budget',     label: 'Budget',    icon: 'wallet' },
+  { key: 'location',   label: 'Lokasi',    icon: 'mapPin' },
+  { key: 'facilities', label: 'Fasilitas', icon: 'sofa' },
 ];
 
 // level dikirim ke API: 3 = paling penting, 2 = penting, 1 = biasa saja
@@ -215,7 +216,7 @@ export default function PersonalisasiPage() {
         aria-pressed={selectedCriteria === key}
         className={`${styles.priorityChip} ${inSlot ? styles.priorityChipInSlot : ''} ${selectedCriteria === key ? styles.priorityChipSelected : ''}`}
       >
-        <span aria-hidden="true">{c.icon}</span>
+        <Icon name={c.icon} />
         {c.label}
       </button>
     );
@@ -550,7 +551,7 @@ export default function PersonalisasiPage() {
                   >
                     {formData.location ? (
                       <>
-                        <span className={styles.locationIconSmall}>📍</span>
+                        <span className={styles.locationIconSmall}><Icon name="mapPin" /></span>
                         <span className={styles.locationValue}>{formData.location}</span>
                         <button
                           className={styles.changeLocationBtn}
@@ -561,7 +562,7 @@ export default function PersonalisasiPage() {
                       </>
                     ) : (
                       <>
-                        <div className={styles.locationIconCircle}>📍</div>
+                        <div className={styles.locationIconCircle}><Icon name="mapPin" /></div>
                         <div className={styles.locationInputText}>
                           <span className={styles.locationPlaceholder}>Pilih titik lokasi di peta</span>
                           <span className={styles.locationSubPlaceholder}>Klik untuk membuka peta interaktif</span>
@@ -634,7 +635,7 @@ export default function PersonalisasiPage() {
 
         {/* ── Error Banner ── */}
         {submitError && (
-          <div className={styles.errorBanner}>⚠️ {submitError}</div>
+          <div className={styles.errorBanner}>{submitError}</div>
         )}
 
         {/* ── Action Buttons ── */}
@@ -663,7 +664,7 @@ export default function PersonalisasiPage() {
         </div>
 
         <p className={styles.footerNote}>
-          😆 Tenang aja, kamu bisa ubah preferensi ini di halaman Profil! 😆
+          Tenang aja, kamu bisa ubah preferensi ini di halaman Profil!
         </p>
 
       </div>

@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
+import Icon from '@/components/Icon';
 
 // MapPicker di-import secara lazy supaya Leaflet tidak di-load pas SSR
 // (Leaflet butuh window/document yang tidak ada di server)
@@ -267,7 +268,7 @@ export default function PersonalisasiPage() {
                 >
                   {formData.location ? (
                     <>
-                      <span className={styles.locationIconSmall}>📍</span>
+                      <span className={styles.locationIconSmall}><Icon name="mapPin" /></span>
                       <span className={styles.locationValue}>{formData.location}</span>
                       <button
                         className={styles.changeLocationBtn}
@@ -461,7 +462,7 @@ export default function PersonalisasiPage() {
 
         {/* ── Error Banner ── */}
         {submitError && (
-          <div className={styles.errorBanner}>⚠️ {submitError}</div>
+          <div className={styles.errorBanner}>{submitError}</div>
         )}
 
         {/* ── Action Buttons ── */}
