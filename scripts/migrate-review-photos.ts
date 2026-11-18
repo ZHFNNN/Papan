@@ -17,7 +17,7 @@ const BATCH_SIZE = 20;
 
 async function main() {
   const apply = process.argv.includes('--apply');
-  console.log(apply ? '📤 Mode APPLY: foto akan dipindahkan.' : '🔍 Mode DRY-RUN: tidak ada yang diubah.');
+  console.log(apply ? 'Mode APPLY: foto akan dipindahkan.' : 'Mode DRY-RUN: tidak ada yang diubah.');
 
   let cursor: string | undefined;
   let reviewsTouched = 0;
@@ -69,12 +69,12 @@ async function main() {
           data: { imageUrls: nextUrls },
         });
 
-        console.log(`✅ ${review.id}: ${base64Count} foto dipindahkan`);
+        console.log(`${review.id}: ${base64Count} foto dipindahkan`);
         reviewsTouched++;
         photosMoved += base64Count;
         bytesFreed += size;
       } catch (error) {
-        console.error(`❌ ${review.id}:`, error);
+        console.error(`${review.id}:`, error);
         failed++;
       }
     }

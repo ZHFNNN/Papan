@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 
 async function main() {
-  console.log('🔄 Memulai migrasi genderTarget dan pembersihan deskripsi...');
+  console.log('Memulai migrasi genderTarget dan pembersihan deskripsi...');
 
   const properties = await prisma.property.findMany({
     select: {
@@ -62,7 +62,7 @@ async function main() {
     }
   }
 
-  console.log(`✅ Selesai!`);
+  console.log(`Selesai!`);
   console.log(`- Kosan diperbarui (genderTarget terisi & deskripsi bersih): ${kosanUpdated}`);
   console.log(`- Non-kosan dipastikan null: ${otherUpdated}`);
 }

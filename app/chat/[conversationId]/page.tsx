@@ -329,7 +329,7 @@ export default function ChatRoomPage() {
         <div className={styles.messagesArea}>
           {messages.length === 0 ? (
             <div className={styles.messagesEmpty}>
-              <p>Belum ada pesan. Mulai percakapan! 👋</p>
+              <p>Belum ada pesan. Mulai percakapan!</p>
             </div>
           ) : (
             messages.map((msg, i) => {

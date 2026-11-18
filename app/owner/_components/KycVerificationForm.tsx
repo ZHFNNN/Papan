@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import styles from "./KycVerificationForm.module.css";
+import Icon from '@/components/Icon';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -308,7 +309,7 @@ export default function KycVerificationForm({ readOnly = false }: { readOnly?: b
 
         {kycStatus === "PENDING" && (
           <div className={`${styles.statusBanner} ${styles.pending}`}>
-            <div className={styles.statusIcon}>⏳</div>
+            <div className={styles.statusIcon}><Icon name="clock" /></div>
             <div>
               <p className={styles.statusTitle}>Sedang Ditinjau</p>
               <p className={styles.statusDesc}>
@@ -322,7 +323,7 @@ export default function KycVerificationForm({ readOnly = false }: { readOnly?: b
 
         {kycStatus === "APPROVED" && (
           <div className={`${styles.statusBanner} ${styles.approved}`}>
-            <div className={styles.statusIcon}>✅</div>
+            <div className={styles.statusIcon}><Icon name="checkCircle" /></div>
             <div>
               <p className={styles.statusTitle}>Akun Sudah Terverifikasi</p>
               <p className={styles.statusDesc}>
@@ -334,7 +335,7 @@ export default function KycVerificationForm({ readOnly = false }: { readOnly?: b
 
         {readOnly && !existingSubmission && (
           <div className={`${styles.statusBanner} ${styles.pending}`}>
-            <div className={styles.statusIcon}>ℹ️</div>
+            <div className={styles.statusIcon}><Icon name="info" /></div>
             <div>
               <p className={styles.statusTitle}>Belum Ada Data Verifikasi</p>
               <p className={styles.statusDesc}>Halaman ini hanya menampilkan data yang sudah pernah kamu kirim.</p>
@@ -348,7 +349,7 @@ export default function KycVerificationForm({ readOnly = false }: { readOnly?: b
         {/* Rejected banner */}
         {kycStatus === "REJECTED" && existingSubmission && (
           <div className={`${styles.statusBanner} ${styles.rejected}`}>
-            <div className={styles.statusIcon}>❌</div>
+            <div className={styles.statusIcon}><Icon name="xCircle" /></div>
             <div>
               <p className={styles.statusTitle}>Pengajuan Ditolak</p>
               <p className={styles.statusDesc}>Silakan perbaiki data dan coba lagi.</p>

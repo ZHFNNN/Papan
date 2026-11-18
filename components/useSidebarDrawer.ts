@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 /** Harus sama dengan breakpoint mobile di ownerSidebar.module.css */
-const MOBILE_QUERY = '(max-width: 980px)';
+const DEFAULT_MOBILE_QUERY = '(max-width: 980px)';
 
 /**
  * Perilaku sidebar di layar kecil: sidebar jadi drawer yang menutupi konten,
  * tertutup otomatis setelah pindah halaman, dan bisa ditutup pakai Esc.
  * Di desktop, tombol toggle tetap menjalankan `onToggle` (collapse biasa).
  */
-export function useSidebarDrawer(onToggle: () => void) {
+export function useSidebarDrawer(onToggle: () => void, mobileQuery = DEFAULT_MOBILE_QUERY) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
@@ -25,12 +25,12 @@ export function useSidebarDrawer(onToggle: () => void) {
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   const handleToggle = useCallback(() => {
-    if (window.matchMedia(MOBILE_QUERY).matches) {
+    if (window.matchMedia(mobileQuery).matches) {
       setDrawerOpen(true);
     } else {
       onToggle();
     }
-  }, [onToggle]);
+  }, [onToggle, mobileQuery]);
 
   // Esc untuk menutup + kunci scroll halaman selama drawer terbuka
   useEffect(() => {
@@ -49,13 +49,13 @@ export function useSidebarDrawer(onToggle: () => void) {
 
   // Kalau layar dibesarkan saat drawer terbuka, tutup drawer-nya
   useEffect(() => {
-    const mql = window.matchMedia(MOBILE_QUERY);
+    const mql = window.matchMedia(mobileQuery);
     const handleChange = () => {
       if (!mql.matches) setDrawerOpen(false);
     };
     mql.addEventListener('change', handleChange);
     return () => mql.removeEventListener('change', handleChange);
-  }, []);
+  }, [mobileQuery]);
 
   return { drawerOpen, closeDrawer, handleToggle };
 }

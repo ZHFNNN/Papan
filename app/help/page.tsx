@@ -6,13 +6,14 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
+import Icon, { type IconName } from '@/components/Icon';
 
 type FAQ = { q: string; a: string };
-type Category = { icon: string; title: string; desc: string; faqs: FAQ[] };
+type Category = { icon: IconName; title: string; desc: string; faqs: FAQ[] };
 
 const CATEGORIES: Category[] = [
   {
-    icon: '👤',
+    icon: 'user',
     title: 'Akun & Profil',
     desc: 'Pengaturan akun, verifikasi, dan profil',
     faqs: [
@@ -22,7 +23,7 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    icon: '🏠',
+    icon: 'home',
     title: 'Cari Properti',
     desc: 'Filter, bookmark, dan pencarian properti',
     faqs: [
@@ -32,7 +33,7 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    icon: '💰',
+    icon: 'wallet',
     title: 'Pembayaran',
     desc: 'Proses transaksi dan metode pembayaran',
     faqs: [
@@ -42,7 +43,7 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    icon: '🔒',
+    icon: 'lock',
     title: 'Keamanan',
     desc: 'Keamanan akun dan privasi data',
     faqs: [
@@ -84,7 +85,7 @@ export default function HelpPage() {
 
             {/* Header */}
             <div className={styles.pageHeader}>
-              <div className={styles.headerIcon}>🛟</div>
+              <div className={styles.headerIcon}><Icon name="lifeBuoy" /></div>
               <div className={styles.headerText}>
                 <h1 className={styles.pageTitle}>Pusat Bantuan</h1>
                 <p className={styles.pageSubtitle}>Temukan jawaban atas pertanyaanmu di sini</p>
@@ -94,7 +95,7 @@ export default function HelpPage() {
             {/* Search */}
             <div className={styles.searchCard}>
               <div className={styles.searchWrapper}>
-                <span className={styles.searchIcon}>🔍</span>
+                <span className={styles.searchIcon}><Icon name="search" /></span>
                 <input
                   className={styles.searchInput}
                   placeholder="Cari topik bantuan..."
@@ -116,7 +117,7 @@ export default function HelpPage() {
                     className={`${styles.catTab} ${activeCategory === i ? styles.catTabActive : ''}`}
                     onClick={() => { setActiveCategory(i); setOpenFaq(null); }}
                   >
-                    <span className={styles.catTabIcon}>{cat.icon}</span>
+                    <span className={styles.catTabIcon}><Icon name={cat.icon} /></span>
                     <span className={styles.catTabLabel}>{cat.title}</span>
                   </button>
                 ))}
@@ -126,7 +127,7 @@ export default function HelpPage() {
             {/* Category Header (hidden when searching) */}
             {!search && (
               <div className={styles.catHeader}>
-                <span className={styles.catHeaderIcon}>{CATEGORIES[activeCategory].icon}</span>
+                <span className={styles.catHeaderIcon}><Icon name={CATEGORIES[activeCategory].icon} /></span>
                 <div>
                   <p className={styles.catHeaderTitle}>{CATEGORIES[activeCategory].title}</p>
                   <p className={styles.catHeaderDesc}>{CATEGORIES[activeCategory].desc}</p>
@@ -145,7 +146,7 @@ export default function HelpPage() {
             <div className={styles.faqList}>
               {currentFaqs.length === 0 ? (
                 <div className={styles.emptyState}>
-                  <p className={styles.emptyIcon}>🔎</p>
+                  <p className={styles.emptyIcon}><Icon name="search" /></p>
                   <p className={styles.emptyText}>Tidak ada hasil untuk pencarian ini.</p>
                   <p className={styles.emptyDesc}>Coba kata kunci lain atau hubungi tim kami.</p>
                 </div>
@@ -172,7 +173,7 @@ export default function HelpPage() {
             {/* Still need help */}
             <div className={styles.helpCard}>
               <div className={styles.helpLeft}>
-                <span className={styles.helpIcon}>💬</span>
+                <span className={styles.helpIcon}><Icon name="message" /></span>
                 <div>
                   <p className={styles.helpTitle}>Masih butuh bantuan?</p>
                   <p className={styles.helpDesc}>Tim support kami siap membantu kamu secara langsung</p>

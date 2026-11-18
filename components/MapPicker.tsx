@@ -347,8 +347,8 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
   const statusLabel: Record<UserLocStatus, { text: string; cls: string }> = {
     requesting:  { text: 'Mendeteksi lokasimu...', cls: styles.statusRequesting },
     active:      { text: '⟜Lokasimu terdeteksi', cls: styles.statusActive },
-    denied:      { text: '⚠ Izin lokasi ditolak — kamu masih bisa pilih manual', cls: styles.statusError },
-    unavailable: { text: '⚠ GPS tidak tersedia — pilih lokasi manual', cls: styles.statusError },
+    denied:      { text: 'Izin lokasi ditolak — kamu masih bisa pilih manual', cls: styles.statusError },
+    unavailable: { text: 'GPS tidak tersedia — pilih lokasi manual', cls: styles.statusError },
   };
 
   return (
@@ -424,7 +424,7 @@ export default function MapPicker({ onLocationPicked, onClose }: MapPickerProps)
         {/* Info lokasi dipilih */}
         <div className={styles.locationInfo}>
           {geocodeError ? (
-            <p className={styles.geocodeError}>⚠️ {geocodeError}</p>
+            <p className={styles.geocodeError}>{geocodeError}</p>
           ) : pickedLocation ? (
             <div className={styles.locationResult}>
               <div className={styles.locationDetails}>

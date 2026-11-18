@@ -440,7 +440,9 @@
 .reportInput {
   width: 100%; box-sizing: border-box; border: 1.5px solid #d1d5db; border-radius: 12px;
   padding: 0.7rem 0.9rem; font: inherit; font-size: 13px; resize: vertical; outline: none;
+  color: #19263c; background: #fff;
 }
+.reportInput::placeholder { color: #9ca3af; }
 .reportInput:focus { border-color: #19263c; }
 .reportActions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .reportCancelBtn, .reportSubmitBtn {

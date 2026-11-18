@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
-import { signOut } from 'next-auth/react';
+import AdminSidebar from '@/components/AdminSidebar';
 
 
 type Person = {
@@ -84,7 +83,6 @@ function displayName(p: Person) {
 }
 
 export default function AdminChatPage() {
-    const router = useRouter();
 	const [q, setQ] = useState("");
 	const [debouncedQ, setDebouncedQ] = useState("");
 
@@ -192,32 +190,7 @@ export default function AdminChatPage() {
 
 	return (
 		<div className={styles.page}>
-            {/* Sidebar */}
-            <aside className={styles.sidebar}>
-                <div className={styles.brand}>
-                <span className={styles.brandIcon}>🏠</span>
-                <span className={styles.brandName}>PAPAN Admin</span>
-                </div>
-
-                <nav className={styles.nav}>
-                <button className={styles.navItem} onClick={() => router.push('/admin/kyc')}>
-					<span>📋</span> Verifikasi KYC
-                </button>
-                <button className={styles.navItem} onClick={() => router.push('/admin/notifications')}>
-					<span>🔔</span> Kirim Notifikasi
-                </button>
-				<button className={`${styles.navItem} ${styles.navItemActive}`}>
-					<span>💬</span> Monitoring Chat
-                </button>
-				<button className={styles.navItem} onClick={() => router.push('/admin/reviews')}>
-				  <span>⭐</span> Moderasi Review
-				</button>
-                </nav>
-
-                <button className={styles.sidebarLogout} onClick={() => signOut({ callbackUrl: '/login' })}>
-                Log Out
-                </button>
-            </aside>
+            <AdminSidebar active="chat" />
 
 			<main className={styles.main}>
 			<div className={styles.header}>

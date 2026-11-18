@@ -128,7 +128,7 @@ function buildFinalProperties() {
 }
 
 async function main() {
-  console.log("🚀 Membersihkan data lama dan memproses 225 data dengan neighbourhood asli...");
+  console.log("Membersihkan data lama dan memproses 225 data dengan neighbourhood asli...");
 
   await Promise.all(DEFAULT_FACILITIES.map(f => prisma.facility.upsert({ where: { code: f.code }, update: {}, create: f })));
 
@@ -174,7 +174,7 @@ async function main() {
     }
   }
 
-  console.log("✅ SELESAI! 225 data dengan lokasi nyata sudah masuk.");
+  console.log("SELESAI! 225 data dengan lokasi nyata sudah masuk.");
 }
 
 main().catch(e => { console.error(e); process.exit(1); }).finally(async () => { await prisma.$disconnect(); });

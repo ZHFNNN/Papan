@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { signOut } from 'next-auth/react';
 import styles from './page.module.css';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import {
@@ -14,6 +13,8 @@ import {
   fetchAdminReviews,
   fetchReportedReviews,
 } from '@/lib/admin-reviews-api';
+import Icon from '@/components/Icon';
+import AdminSidebar from '@/components/AdminSidebar';
 
 const RATING_OPTIONS = [5, 4, 3, 2, 1];
 const REASON_PRESETS = ['Kata kasar / tidak sopan', 'Spam atau promosi', 'Tidak relevan dengan properti', 'Informasi palsu'];
@@ -148,7 +149,7 @@ export default function AdminReviewsPage() {
         className={styles.propertyLink}
         onClick={() => router.push(`/propertyDetail/${encodeURIComponent(review.property.id)}`)}
       >
-        🏠 {review.property.title}
+        <Icon name="home" /> {review.property.title}
       </button>
 
       <p className={styles.comment}>{review.comment || <em>Tanpa komentar</em>}</p>
@@ -180,29 +181,7 @@ export default function AdminReviewsPage() {
 
   return (
     <div className={styles.page}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <span className={styles.brandIcon}>🏠</span>
-          <span className={styles.brandName}>PAPAN Admin</span>
-        </div>
-        <nav className={styles.nav}>
-          <button className={styles.navItem} onClick={() => router.push('/admin/kyc')}>
-            <span>📋</span> Verifikasi KYC
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/notifications')}>
-            <span>🔔</span> Kirim Notifikasi
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/chat')}>
-            <span>💬</span> Monitoring Chat
-          </button>
-          <button className={`${styles.navItem} ${styles.navItemActive}`}>
-            <span>⭐</span> Moderasi Review
-          </button>
-        </nav>
-        <button className={styles.sidebarLogout} onClick={() => signOut({ callbackUrl: '/login' })}>
-          Log Out
-        </button>
-      </aside>
+      <AdminSidebar active="reviews" />
 
       <main className={styles.main}>
         <div className={styles.topbar}>
@@ -236,7 +215,7 @@ export default function AdminReviewsPage() {
         {/* Review yang dilaporkan user */}
         {tab === 'reported' && (
           isLoadingReported ? skeletons : reported.length === 0 ? (
-            <div className={styles.empty}>Belum ada laporan review yang perlu ditinjau. 🎉</div>
+            <div className={styles.empty}>Belum ada laporan review yang perlu ditinjau.</div>
           ) : (
             <div className={styles.list}>
               {reported.map((review) => (
@@ -244,7 +223,7 @@ export default function AdminReviewsPage() {
                   {renderReviewBody(review)}
 
                   <div className={styles.reports}>
-                    <p className={styles.reportsTitle}>🚩 Dilaporkan {review.reports.length} user</p>
+                    <p className={styles.reportsTitle}><Icon name="flag" /> Dilaporkan {review.reports.length} user</p>
                     <ul className={styles.reportList}>
                       {review.reports.map((report) => (
                         <li key={report.id} className={styles.reportItem}>
@@ -304,7 +283,7 @@ export default function AdminReviewsPage() {
                 className={`${styles.chip} ${rating === r ? styles.chipActive : ''}`}
                 onClick={() => setRating(r)}
               >
-                {r} ⭐
+                {r} <Icon name="star" filled />
               </button>
             ))}
           </div>

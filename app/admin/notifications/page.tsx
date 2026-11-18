@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { signOut } from 'next-auth/react';
 import styles from './page.module.css';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
+import Icon from '@/components/Icon';
+import AdminSidebar from '@/components/AdminSidebar';
 
 type PropertyCategory = 'RUMAH' | 'APARTEMEN' | 'KOSAN';
 
@@ -157,30 +158,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className={styles.page}>
-      {/* Sidebar */}
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <span className={styles.brandIcon}>🏠</span>
-          <span className={styles.brandName}>PAPAN Admin</span>
-        </div>
-        <nav className={styles.nav}>
-          <button className={styles.navItem} onClick={() => router.push('/admin/kyc')}>
-            <span>📋</span> Verifikasi KYC
-          </button>
-          <button className={`${styles.navItem} ${styles.navItemActive}`}>
-            <span>🔔</span> Kirim Notifikasi
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/chat')}>
-            <span>💬</span> Monitoring Chat
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/reviews')}>
-            <span>⭐</span> Moderasi Review
-          </button>
-        </nav>
-        <button className={styles.sidebarLogout} onClick={() => signOut({ callbackUrl: '/login' })}>
-          Log Out
-        </button>
-      </aside>
+      <AdminSidebar active="notifications" />
 
       {/* Main */}
       <main className={styles.main}>
@@ -190,11 +168,11 @@ export default function AdminNotificationsPage() {
             <button
               className={`${styles.tab} ${tab === 'compose' ? styles.tabActive : ''}`}
               onClick={() => setTab('compose')}
-            >✍️ Buat Pesan</button>
+            >Buat Pesan</button>
             <button
               className={`${styles.tab} ${tab === 'history' ? styles.tabActive : ''}`}
               onClick={() => setTab('history')}
-            >📜 Riwayat</button>
+            >Riwayat</button>
           </div>
         </div>
 
@@ -257,10 +235,11 @@ export default function AdminNotificationsPage() {
                       border: notificationType === 'ADMIN_BROADCAST' ? '2px solid #305496' : '1px solid #ccc',
                       background: notificationType === 'ADMIN_BROADCAST' ? '#e7f0ff' : '#fff',
                       cursor: 'pointer',
+                      color: '#19263c',
                       fontWeight: notificationType === 'ADMIN_BROADCAST' ? 600 : 400,
                     }}
                   >
-                    📢 Broadcast Umum
+                    Broadcast Umum
                   </button>
                   <button
                     type="button"
@@ -272,10 +251,11 @@ export default function AdminNotificationsPage() {
                       border: notificationType === 'PROMO_SUGGESTION' ? '2px solid #dc2626' : '1px solid #ccc',
                       background: notificationType === 'PROMO_SUGGESTION' ? '#ffe9e9' : '#fff',
                       cursor: 'pointer',
+                      color: '#19263c',
                       fontWeight: notificationType === 'PROMO_SUGGESTION' ? 600 : 400,
                     }}
                   >
-                    🏷️ Saran Promo
+                    Saran Promo
                   </button>
                 </div>
                 <p style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
@@ -289,7 +269,7 @@ export default function AdminNotificationsPage() {
               <div className={styles.previewSection}>
                 <p className={styles.previewLabel}>Preview Notifikasi</p>
                 <div className={styles.previewCard}>
-                  <div className={styles.previewIcon}>{notificationType === 'PROMO_SUGGESTION' ? '🏷️' : '🔔'}</div>
+                  <div className={styles.previewIcon}><Icon name={notificationType === 'PROMO_SUGGESTION' ? 'tag' : 'bell'} /></div>
                   <div className={styles.previewContent}>
                     <p className={styles.previewTitle}>{title || 'Judul notifikasi...'}</p>
                     <p className={styles.previewMsg}>{message ? message.slice(0, 80) + (message.length > 80 ? '...' : '') : 'Isi pesan akan muncul di sini...'}</p>
@@ -302,7 +282,7 @@ export default function AdminNotificationsPage() {
                 onClick={() => void handleSend()}
                 disabled={sending || owners.length === 0}
               >
-                {sending ? 'Mengirim...' : `🚀 Kirim ke ${owners.length} Owner`}
+                {sending ? 'Mengirim...' : `Kirim ke ${owners.length} Owner`}
               </button>
             </div>
 
