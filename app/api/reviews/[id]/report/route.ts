@@ -35,16 +35,25 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const existing = await prisma.reviewReport.findUnique({
     where: { reviewId_reporterId: { reviewId, reporterId: userId } },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
-  if (existing) {
+  if (existing?.status === 'PENDING') {
     return Response.json({ message: 'Kamu sudah melaporkan review ini.' }, { status: 409 });
   }
 
-  await prisma.reviewReport.create({
-    data: { reviewId, reporterId: userId, reason: parsed.reason },
-  });
+  if (existing) {
+    // Laporan lama sudah ditolak admin -> diajukan lagi dengan alasan baru supaya masuk antrean admin lagi.
+    // Pakai update karena 1 user hanya boleh punya 1 baris laporan per review (@@unique).
+    await prisma.reviewReport.update({
+      where: { id: existing.id },
+      data: { reason: parsed.reason, status: 'PENDING', createdAt: new Date() },
+    });
+  } else {
+    await prisma.reviewReport.create({
+      data: { reviewId, reporterId: userId, reason: parsed.reason },
+    });
+  }
 
   return Response.json({ message: 'Laporan terkirim. Admin akan meninjau review ini.' }, { status: 201 });
 }

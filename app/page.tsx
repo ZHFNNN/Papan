@@ -8,6 +8,7 @@ import HeroSection from './_components/home/HeroSection';
 import PropertySection from './_components/home/PropertySection';
 import RecommendationSection from './_components/home/RecommendationSection';
 import { useHomeProperties, usePromoPopup, usePromoProperties } from './_components/home/useHomeData';
+import Icon from '@/components/Icon';
 
 // Kode popup (termasuk animasi canvas) baru diunduh saat popup dibuka
 const DiscountPopup = dynamic(() => import('./_components/home/DiscountPopup'), { ssr: false });
@@ -47,7 +48,7 @@ export default function HomePage() {
           onClick={promo.open}
           aria-label="Buka promo potongan harga"
         >
-          <span className={styles.promoFabIcon}>🔥</span>
+          <span className={styles.promoFabIcon}><Icon name="tag" /></span>
           <span className={styles.promoFabText}>Promo</span>
         </button>
       )}

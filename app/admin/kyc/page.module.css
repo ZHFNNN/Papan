@@ -8,92 +8,15 @@
   font-family: 'Poppins', sans-serif;
 }
 
-/* ── Sidebar ── */
-.sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  background: #19263c;
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem 1rem;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 2rem;
-  padding: 0 0.5rem;
-}
 
-.brandIcon {
-  font-size: 22px;
-}
 
-.brandName {
-  font-size: 16px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.2px;
-}
 
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  flex: 1;
-}
 
-.navItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 0.65rem 0.95rem;
-  border-radius: 18px;
-  font-family: 'Poppins', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-  text-align: left;
-  transition: all 0.2s ease;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
 
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
 
-.navItemActive {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-weight: 600;
-}
 
-.sidebarLogout {
-  width: 100%;
-  background: #9e0c0c;
-  border: none;
-  border-radius: 18px;
-  padding: 0.65rem;
-  font-family: 'Poppins', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  margin-top: 1rem;
-}
 
-.sidebarLogout:hover {
-  background: #8a0a0a;
-}
 
 /* ── Main ── */
 .main {
@@ -689,9 +612,7 @@
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    display: none;
-  }
+  .page { flex-direction: column; }
 
   .main {
     padding: 1.25rem;

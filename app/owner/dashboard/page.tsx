@@ -6,6 +6,7 @@ import styles from './page.module.css';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { formatPrice } from '../../../lib/format-price';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Icon from '@/components/Icon';
 
 type ActiveBoost = {
   id: string;
@@ -239,7 +240,7 @@ export default function OwnerDashboardPage() {
 
             {data.properties.length === 0 ? (
               <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>🏠</div>
+                <div className={styles.emptyIcon}><Icon name="home" /></div>
                 <p className={styles.emptyTitle}>Belum Ada Properti</p>
                 <p className={styles.emptyDesc}>Mulai tambahkan properti pertamamu sekarang.</p>
                 <button

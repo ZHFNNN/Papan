@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
 import { IMAGE_WIDTH } from '@/lib/image';
-import { signOut } from 'next-auth/react';
+import AdminSidebar from '@/components/AdminSidebar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -306,32 +306,7 @@ export default function AdminKycPage() {
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <span className={styles.brandIcon}>🏠</span>
-          <span className={styles.brandName}>PAPAN Admin</span>
-        </div>
-
-        <nav className={styles.nav}>
-          <button className={`${styles.navItem} ${styles.navItemActive}`}>
-            <span>📋</span> Verifikasi KYC
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/notifications')}>
-            <span>🔔</span> Kirim Notifikasi
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/chat')}>
-            <span>💬</span> Monitoring Chat
-          </button>
-          <button className={styles.navItem} onClick={() => router.push('/admin/reviews')}>
-            <span>⭐</span> Moderasi Review
-          </button>
-        </nav>
-
-        <button className={styles.sidebarLogout} onClick={() => signOut({ callbackUrl: '/login' })}>
-          Log Out
-        </button>
-      </aside>
+      <AdminSidebar active="kyc" />
 
       {/* Main */}
       <main className={styles.main}>

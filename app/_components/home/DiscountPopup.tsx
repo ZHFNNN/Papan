@@ -8,6 +8,7 @@ import { type PropertyCardData, calculateDiscountedPrice, isDiscountStillActive 
 import { CardFacilities, CardLocation, CardShell, CardStats, SkeletonCards } from './CardParts';
 import { propertyDetailHref } from './constants';
 import { useSparkCanvas } from './useSparkCanvas';
+import Icon from '@/components/Icon';
 
 type DiscountItem = {
   prop: PropertyCardData;
@@ -30,16 +31,15 @@ function toDiscountItems(items: PropertyCardData[]): DiscountItem[] {
       };
     });
 }
-const TICKER_ICONS = ['😱', '🔥'];
 const TICKER_REPEAT = 5;
 
-function TickerGroup({ offset, hidden }: { offset: number; hidden?: boolean }) {
+function TickerGroup({ hidden }: { hidden?: boolean }) {
   return (
     <span className={styles.discountTickerGroup} aria-hidden={hidden || undefined}>
       {Array.from({ length: TICKER_REPEAT }).map((_, i) => (
         <span key={i} className={styles.discountTickerItem}>
           <span className={styles.discountPill}>
-            <span className={styles.discountFlashIcon}>{TICKER_ICONS[(i + offset) % 2]}</span>
+            <span className={styles.discountFlashIcon}><Icon name="flame" /></span>
             <span className={styles.discountTitle}>Potongan Harga</span>
           </span>
         </span>
@@ -58,8 +58,8 @@ function DiscountTicker({ position }: { position: 'top' | 'bottom' }) {
         aria-label={isTop ? 'Potongan Harga' : undefined}
         aria-hidden={isTop ? undefined : true}
       >
-        <TickerGroup offset={0} />
-        <TickerGroup offset={1} hidden />
+        <TickerGroup />
+        <TickerGroup hidden />
       </h2>
     </div>
   );

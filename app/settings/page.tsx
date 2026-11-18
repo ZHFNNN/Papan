@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
+import Icon from '@/components/Icon';
 
 type ToggleSetting = {
   id: string;
@@ -73,7 +74,7 @@ export default function SettingsPage() {
 
             {/* Header */}
             <div className={styles.pageHeader}>
-              <div className={styles.headerIcon}>⚙️</div>
+              <div className={styles.headerIcon}><Icon name="settings" /></div>
               <div>
                 <h1 className={styles.pageTitle}>Pengaturan</h1>
                 <p className={styles.pageSubtitle}>Kelola preferensi dan keamanan akunmu</p>
@@ -83,7 +84,7 @@ export default function SettingsPage() {
             {/* Notification Settings */}
             <div className={styles.card}>
               <div className={styles.cardHeader}>
-                <span className={styles.cardIcon}>🔔</span>
+                <span className={styles.cardIcon}><Icon name="bell" /></span>
                 <h2 className={styles.cardTitle}>Notifikasi & Preferensi</h2>
               </div>
               <div className={styles.toggleList}>
@@ -108,7 +109,7 @@ export default function SettingsPage() {
             {/* Select Settings */}
             <div className={styles.card}>
               <div className={styles.cardHeader}>
-                <span className={styles.cardIcon}>🌐</span>
+                <span className={styles.cardIcon}><Icon name="globe" /></span>
                 <h2 className={styles.cardTitle}>Lokalisasi & Privasi</h2>
               </div>
               <div className={styles.selectList}>
@@ -135,7 +136,7 @@ export default function SettingsPage() {
             {/* Danger Zone */}
             <div className={styles.dangerCard}>
               <div className={styles.cardHeader}>
-                <span className={styles.cardIcon}>⚠️</span>
+                <span className={styles.cardIcon}><Icon name="alert" /></span>
                 <h2 className={styles.dangerTitle}>Zona Bahaya</h2>
               </div>
               <div className={styles.dangerRow}>

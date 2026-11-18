@@ -1,0 +1,135 @@
+/* Sidebar admin — dipakai bersama oleh semua halaman /admin */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: #19263c;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  font-family: 'Poppins', sans-serif;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; padding: 0 0.5rem; }
+.brandIcon { font-size: 22px; color: #fff; display: flex; }
+.brandName { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+
+.nav { display: flex; flex-direction: column; gap: 0.375rem; flex: 1; }
+.navItem {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 0.65rem 0.95rem; border-radius: 18px;
+  font-size: 14px; font-weight: 500; color: rgba(255, 255, 255, 0.7);
+  text-decoration: none; transition: all 0.2s ease;
+}
+.navItem:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.navItemActive { background: rgba(255, 255, 255, 0.2); color: #fff; font-weight: 600; }
+
+.logout {
+  width: 100%; background: #9e0c0c; border: none; border-radius: 18px;
+  padding: 0.65rem; font-family: inherit; font-size: 14px;
+  font-weight: 600; color: #fff; cursor: pointer; transition: background 0.2s ease; margin-top: 1rem;
+}
+.logout:hover { background: #8a0a0a; }
+
+/* Elemen khusus mobile — disembunyikan di desktop */
+.mobileBar,
+.backdrop,
+.drawerClose {
+  display: none;
+}
+
+/* ── Mobile: sidebar jadi drawer, dibuka lewat tombol Menu ── */
+@media (max-width: 768px) {
+  .mobileBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 140;
+    width: 100%;
+    padding: 10px 16px;
+    background: #19263c;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .menuButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: transparent;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Ikon hamburger 3 garis */
+  .menuLines,
+  .menuLines::before,
+  .menuLines::after {
+    display: block;
+    width: 14px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  .menuLines { position: relative; }
+  .menuLines::before,
+  .menuLines::after { content: ''; position: absolute; left: 0; }
+  .menuLines::before { top: -5px; }
+  .menuLines::after { top: 5px; }
+
+  .mobileBrand { color: #fff; font-size: 15px; font-weight: 700; }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    width: min(280px, 85vw);
+    z-index: 160;
+    overflow-y: auto;
+    border-radius: 0 24px 24px 0;
+    box-shadow: 8px 0 32px rgba(10, 18, 35, 0.35);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .drawerClose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    background: rgba(7, 13, 28, 0.55);
+    backdrop-filter: blur(2px);
+  }
+}
