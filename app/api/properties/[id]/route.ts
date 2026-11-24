@@ -17,6 +17,7 @@
             name: true,
             username: true,
             image: true,
+            phoneNumber: true,
           },
         },
         facilities: {
