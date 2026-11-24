@@ -1,17 +1,26 @@
 // components/WhatsAppButton.tsx
-// Tombol "Chat via WhatsApp" di halaman detail properti (tampilan saja untuk saat ini)
+// Tombol "Chat via WhatsApp" di halaman detail properti
 
 import styles from "./WhatsAppButton.module.css";
 
 interface WhatsAppButtonProps {
-  // Nomor dalam format internasional tanpa "+", contoh: 6281234567890
+  // Nomor dalam format lokal atau internasional (contoh: 0812..., +62812..., atau 62812...)
   phone: string;
   propertyTitle: string;
 }
 
+export function formatWhatsAppNumber(phone: string): string {
+  let cleaned = phone.replace(/\D/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.slice(1);
+  }
+  return cleaned;
+}
+
 export default function WhatsAppButton({ phone, propertyTitle }: WhatsAppButtonProps) {
+  const formattedPhone = formatWhatsAppNumber(phone);
   const message = `Halo, saya tertarik dengan properti "${propertyTitle}" di Papan. Apakah masih tersedia?`;
-  const href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const href = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 
   return (
     <a

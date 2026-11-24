@@ -36,7 +36,13 @@ type PropertyDetail = {
   listingType: string;
   lat?: number | null;
   lng?: number | null;
-  owner?: { id?: string | null; name?: string | null; username?: string | null; image?: string | null };
+  owner?: {
+    id?: string | null;
+    name?: string | null;
+    username?: string | null;
+    image?: string | null;
+    phoneNumber?: string | null;
+  };
   facilities: Array<{ code: string; name: string }>;
   createdAt: string;
   discountPercentage?: number | null;
@@ -104,6 +110,7 @@ type DisplayProperty = {
   ownerName: string;
   ownerId: string | null;
   ownerImage: string | null;
+  ownerPhoneNumber: string | null;
 };
 
 type CurrentUser = {
@@ -172,6 +179,7 @@ function mapApiProperty(data: PropertyDetail): DisplayProperty {
       data.owner?.name ?? data.owner?.username ?? data.owner?.image ??'Pemilik Properti',
     ownerId: data.owner?.id ?? null,
     ownerImage: data.owner?.image ?? null,
+    ownerPhoneNumber: data.owner?.phoneNumber ?? null,
   };
 }
 
@@ -741,8 +749,10 @@ export default function PropertyDetailClient({ propertyId }: PropertyDetailClien
             <StartChatButton propertyId={prop.id} ownerId={prop.ownerId} variant="light" />
           ) : null}
 
-          {/* TODO: ganti nomor dummy dengan owner.phoneNumber dari API */}
-          <WhatsAppButton phone="6281234567890" propertyTitle={prop.title} />
+          {/* Tombol WhatsApp: hanya tampil jika pemilik properti memiliki nomor HP */}
+          {prop.ownerPhoneNumber ? (
+            <WhatsAppButton phone={prop.ownerPhoneNumber} propertyTitle={prop.title} />
+          ) : null}
 
               <button
                 className={`${styles.btnOutline} ${bookmarked ? styles.btnOutlineActive : ''}`}
