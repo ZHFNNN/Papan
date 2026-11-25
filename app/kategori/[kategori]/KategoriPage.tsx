@@ -14,14 +14,24 @@ import { formatPrice } from '@/lib/format-price';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import CardImageCarousel from '@/components/CardImageCarousel';
 import { type ApiProperty, type PropertyCardData, mapApiPropertyToCard } from '@/types/property';
+import {
+  type KategoriListingType,
+  type KategoriSortKey,
+  KATEGORI_MAX_PRICE,
+  clampSliderHigh,
+  clampSliderLow,
+  countActiveFilters,
+  filterKategoriItems,
+  toggleFacilityCode,
+} from '@/lib/frontend/kategori-filter';
 import styles from './Kategoripage.module.css';
 import Icon from '@/components/Icon';
 
 // ─── Types ────────────────────────────────────────────────────
 
 type ViewMode = 'grid' | 'list' | 'map';
-type SortKey = 'default' | 'price_asc' | 'price_desc' | 'newest';
-type ListingType = 'RENT' | 'SELL' | null;
+type SortKey = KategoriSortKey;
+type ListingType = KategoriListingType;
 
 export type KategoriType = 'Apartemen' | 'Rumah' | 'Kosan';
 export type CategoryApiValue = 'APARTEMEN' | 'RUMAH' | 'KOSAN';
@@ -69,13 +79,6 @@ const PRICE_PRESETS = [
   { label: '> 10 Jt', min: 10_000_000, max: Infinity },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────
-
-function parseRawPrice(price: string | number): number {
-  if (typeof price === 'number') return price;
-  return parseInt(String(price).replace(/[^0-9]/g, ''), 10) || 0;
-}
-
 // ─── Sub-components ───────────────────────────────────────────
 
 // Price range slider
@@ -100,7 +103,7 @@ function PriceRangeSlider({
           value={value[0]}
           className={styles.sliderInput}
           onChange={(e) => {
-            const v = Math.min(Number(e.target.value), value[1] - 500_000);
+            const v = clampSliderLow(Number(e.target.value), value[1]);
             onChange([v, value[1]]);
           }}
         />
@@ -109,7 +112,7 @@ function PriceRangeSlider({
           value={value[1]}
           className={styles.sliderInput}
           onChange={(e) => {
-            const v = Math.max(Number(e.target.value), value[0] + 500_000);
+            const v = clampSliderHigh(Number(e.target.value), value[0]);
             onChange([value[0], v]);
           }}
         />
@@ -262,7 +265,7 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   // Filter state
-  const MAX_PRICE = 50_000_000;
+  const MAX_PRICE = KATEGORI_MAX_PRICE;
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterListing, setFilterListing] = useState<ListingType>(null);
   const [filterFacilities, setFilterFacilities] = useState<string[]>([]);
@@ -297,51 +300,15 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
   }, [categoryApiValue]);
 
   // ── Filter + sort (client-side) ───────────────────────────────
-  const filtered = useMemo(() => {
-    let result = [...items];
+  const filters = useMemo(
+    () => ({ listing: filterListing, city: filterCity, priceRange, facilities: filterFacilities, sort: sortKey }),
+    [filterListing, filterCity, priceRange, filterFacilities, sortKey],
+  );
 
-    // Listing type
-    if (filterListing) {
-      result = result.filter((p) => p.listingType === filterListing);
-    }
-
-    // City
-    if (filterCity) {
-      result = result.filter((p) =>
-        (p.lokasi ?? '').toLowerCase().includes(filterCity.toLowerCase())
-      );
-    }
-
-    // Price range
-    result = result.filter((p) => {
-      const raw = parseRawPrice(p.price);
-      return raw >= priceRange[0] && (priceRange[1] >= MAX_PRICE || raw <= priceRange[1]);
-    });
-
-    // Facilities — filter properti yang punya SEMUA fasilitas yang dipilih
-    if (filterFacilities.length > 0) {
-      result = result.filter((p) =>
-        filterFacilities.every((fc) =>
-          p.fasilitas.some((f) => f.toLowerCase().includes(fc.toLowerCase()))
-        )
-      );
-    }
-
-    // Sort
-    if (sortKey === 'price_asc') result.sort((a, b) => parseRawPrice(a.price) - parseRawPrice(b.price));
-    else if (sortKey === 'price_desc') result.sort((a, b) => parseRawPrice(b.price) - parseRawPrice(a.price));
-    else if (sortKey === 'newest') result.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
-
-    return result;
-  }, [items, filterListing, filterCity, priceRange, filterFacilities, sortKey, MAX_PRICE]);
+  const filtered = useMemo(() => filterKategoriItems(items, filters, MAX_PRICE), [items, filters, MAX_PRICE]);
 
   // Active filter count for badge
-  const activeFilterCount = [
-    filterCity !== null,
-    filterListing !== null,
-    filterFacilities.length > 0,
-    priceRange[0] > 0 || priceRange[1] < MAX_PRICE,
-  ].filter(Boolean).length;
+  const activeFilterCount = countActiveFilters(filters, MAX_PRICE);
 
   const clearAllFilters = useCallback(() => {
     setFilterCity(null);
@@ -371,9 +338,7 @@ export default function KategoriPage({ aktif, categoryApiValue, bgImage, hotspot
   };
 
   const toggleFacility = (code: string) => {
-    setFilterFacilities((prev) =>
-      prev.includes(code) ? prev.filter((f) => f !== code) : [...prev, code]
-    );
+    setFilterFacilities((prev) => toggleFacilityCode(prev, code));
   };
 
   // Map query for iframe

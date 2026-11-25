@@ -8,6 +8,7 @@ import { buildLocation, formatListingType } from '@/types/property';
 import { CardFacilities, CardLocation, CardShell, SkeletonCards } from './CardParts';
 import CardRowSection from './CardRowSection';
 import { propertyDetailHref } from './constants';
+import { formatFacilityCode, recommendationImages } from '@/lib/frontend/home';
 
 type RecommendationItem = {
   id: string;
@@ -32,20 +33,7 @@ type RecommendationState = {
   message: string | null;
 };
 
-const FALLBACK_IMAGES = ['/images/bgHomeKosan.jpeg', '/images/bgHomeApart.png'];
-
-/** "WATER_HEATER" -> "Water Heater", "AC" -> "AC" */
-const formatFacilityCode = (code: string) =>
-  code
-    .toLowerCase()
-    .split('_')
-    .map((word) => (word.length <= 2 ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)))
-    .join(' ');
-
-const imagesOf = (item: RecommendationItem, idx: number) =>
-  item.images?.length
-    ? item.images
-    : [item.coverImageUrl ?? FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]];
+const imagesOf = (item: RecommendationItem, idx: number) => recommendationImages(item, idx);
 
 function useRecommendations(): RecommendationState {
   const [state, setState] = useState<RecommendationState>({ items: [], isLoading: true, message: null });

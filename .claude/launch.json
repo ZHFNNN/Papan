@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "papan-blackbox",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tests/blackbox/start-server.mjs"],
+      "port": 3100
+    }
+  ]
+}

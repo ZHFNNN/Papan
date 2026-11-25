@@ -5,6 +5,7 @@ import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import toast from "react-hot-toast"; // Import Toast
+import { validateRegisterForm } from "@/lib/frontend/form-validation";
 
 export default function RegisterPage() {
   // Semua state yang dibutuhkan sesuai schema Prisma
@@ -25,12 +26,9 @@ export default function RegisterPage() {
 
   const handleRegister = async () => {
     // 1. Validasi frontend (Mencegah request sia-sia ke server)
-    if (!name || !username || !email || !phoneNumber || !password) {
-      toast.error("Harap isi semua field yang wajib!");
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast.error("Password dan konfirmasi password tidak cocok!");
+    const validationError = validateRegisterForm({ name, username, email, phoneNumber, password, confirmPassword });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 

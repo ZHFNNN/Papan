@@ -4,8 +4,9 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
-import { KOSAN_GENDER_OPTIONS, KOSAN_GENDER_REQUIRED_MESSAGE, type KosanGenderTarget } from '@/lib/property-input';
-import { DUPLICATE_PHOTO_API_MESSAGE, duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
+import { KOSAN_GENDER_OPTIONS, type KosanGenderTarget } from '@/lib/property-input';
+import { duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
+import { validatePropertyForm } from '@/lib/frontend/form-validation';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 import Icon from '@/components/Icon';
 
@@ -237,24 +238,15 @@ export default function AddPropertyPage() {
   };
 
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    if (!form.title.trim()) newErrors.title = 'Nama properti wajib diisi.';
-    if (!form.address.trim() || form.locationLat == null || form.locationLng == null) {
-      newErrors.address = 'Lokasi wajib dipilih lewat peta.';
-    }
-    if (!form.price.trim()) newErrors.price = 'Harga wajib diisi.';
-    else if (isNaN(Number(form.price.replace(/[^0-9]/g, '')))) newErrors.price = 'Harga harus berupa angka.';
-    if (!form.description.trim()) newErrors.description = 'Deskripsi wajib diisi.';
-    if (!form.listingType) newErrors.listingType = 'Tipe listing wajib dipilih.';
-    if (!form.category) newErrors.category = 'Kategori properti wajib dipilih.';
-    if (form.category === 'KOSAN' && !genderTarget) {
-      newErrors.genderTarget = KOSAN_GENDER_REQUIRED_MESSAGE;
-    }
-    if (photos.length < MIN_PROPERTY_PHOTOS) {
-      newErrors.photos = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (kamu baru memilih ${photos.length}).`;
-    } else if (new Set(photoHashesRef.current).size !== photos.length) {
-      newErrors.photos = DUPLICATE_PHOTO_API_MESSAGE;
-    }
+    const newErrors: FormErrors = validatePropertyForm(
+      { ...form, genderTarget },
+      {
+        totalCount: photos.length,
+        newHashes: photoHashesRef.current,
+        newCount: photos.length,
+        countLabel: 'kamu baru memilih',
+      },
+    );
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };

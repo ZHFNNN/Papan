@@ -5,19 +5,14 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import styles from '@/app/HomePage.module.css';
 import { HERO_HOTSPOTS, HERO_HOVER_STORAGE_KEY, KATEGORI_TABS, type HeroHotspot } from './constants';
+import { consumeSavedSpot as consumeStoredSpot } from '@/lib/frontend/home';
 
 const CHARA_MIN_X = 5;
 const CHARA_MAX_X = 88;
 
 /** Baca (lalu hapus) bangunan yang terakhir di-hover sebelum pindah halaman. */
 function consumeSavedSpot(): string | null {
-  try {
-    const saved = sessionStorage.getItem(HERO_HOVER_STORAGE_KEY);
-    sessionStorage.removeItem(HERO_HOVER_STORAGE_KEY);
-    return saved && HERO_HOTSPOTS.some((spot) => spot.id === saved) ? saved : null;
-  } catch {
-    return null;
-  }
+  return consumeStoredSpot(HERO_HOVER_STORAGE_KEY, HERO_HOTSPOTS.map((spot) => spot.id));
 }
 
 export default function HeroSection() {

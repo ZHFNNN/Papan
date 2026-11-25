@@ -7,6 +7,9 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import styles from './page.module.css';
 import Icon from '@/components/Icon';
+import { validatePersonalisasiForm } from '@/lib/frontend/form-validation';
+import { shortLocationName } from '@/lib/frontend/location';
+import { applySavedPersonalization, togglePreference } from '@/lib/frontend/personalisasi-form';
 
 // MapPicker di-import secara lazy supaya Leaflet tidak di-load pas SSR
 // (Leaflet butuh window/document yang tidak ada di server)
@@ -47,12 +50,6 @@ const PREFERENCES = [
   'Dekat transportasi umum',
 ];
 
-const BUDGET_LABEL_MAP: Record<string, string> = {
-  '0-2000000': '0 - 2 juta',
-  '2000000-4000000': '2 - 4 juta',
-  '4000000-6000000': '4 - 6 juta',
-  '6000000-8000000': '6 - 8 juta',
-};
 
 export default function PersonalisasiPage() {
   const router = useRouter();
@@ -113,30 +110,7 @@ export default function PersonalisasiPage() {
         const data = await res.json();
         if (!data) return;
 
-        const budgetKey = `${data.budgetMin ?? ''}-${data.budgetMax ?? ''}`;
-        const budgetLabel =
-          BUDGET_LABEL_MAP[budgetKey] ??
-          ((data.budgetMin ?? 0) >= 8_000_000 ? '8 juta+' : '0 - 2 juta');
-
-        const prefs: string[] = [];
-        if (data.prefFurnished) prefs.push('Furnished');
-        if (data.prefUnfurnished) prefs.push('Unfurnished');
-        if (data.prefPetFriendly) prefs.push('Pet-friendly');
-        if (data.prefParkirMobil) prefs.push('Parkir Mobil');
-        if (data.prefAc) prefs.push('AC');
-        if (data.prefWaterHeater) prefs.push('Water Heater');
-        if (data.prefDekatTransportasi) prefs.push('Dekat transportasi umum');
-
-        setFormData((prev) => ({
-          ...prev,
-          location: data.location ?? prev.location,
-          occupation: data.occupation ?? prev.occupation,
-          budget: budgetLabel,
-          // Tipe properti belum disimpan di DB; gender tersimpan berarti sebelumnya pilih kosan
-          propertyType: data.gender ? 'Kosan' : prev.propertyType,
-          gender: data.gender ?? prev.gender,
-          preferences: prefs,
-        }));
+        setFormData((prev) => applySavedPersonalization(prev, data));
       } catch {
         // biarkan default form jika gagal fetch
       }
@@ -156,8 +130,7 @@ export default function PersonalisasiPage() {
     lng: number;
   }) => {
     // Format nama lokasi yang ditampilkan di input
-    const parts = [loc.neighbourhood, loc.district, loc.city].filter(Boolean);
-    const shortName = parts.join(', ') || loc.displayName;
+    const shortName = shortLocationName(loc);
 
     setFormData((prev) => ({
       ...prev,
@@ -172,22 +145,13 @@ export default function PersonalisasiPage() {
 
   // ── Handler: toggle preferensi ───────────────────────────────────────────
   const handleTogglePreference = (pref: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      preferences: prev.preferences.includes(pref)
-        ? prev.preferences.filter((p) => p !== pref)
-        : [...prev.preferences, pref],
-    }));
+    setFormData((prev) => ({ ...prev, preferences: togglePreference(prev.preferences, pref) }));
   };
 
   // ── Validasi ──────────────────────────────────────────────────────────────
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    if (!formData.location.trim()) newErrors.location   = 'Pilih lokasi lewat peta.';
-    if (!formData.occupation)      newErrors.occupation = 'Pilih pekerjaan kamu.';
-    if (!formData.budget)          newErrors.budget     = 'Pilih range budget kamu.';
-    if (!formData.propertyType)    newErrors.propertyType = 'Pilih tipe properti yang kamu cari.';
-    if (isKosan && !formData.gender) newErrors.gender   = 'Pilih gender kamu.';
+    // Halaman edit tidak menyusun prioritas DSS, jadi ranking tidak dikirim
+    const newErrors: FormErrors = validatePersonalisasiForm(formData);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };

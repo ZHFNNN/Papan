@@ -10,10 +10,16 @@ import WhatsAppButton from '@/components/WhatsAppButton';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import styles from './page.module.css';
-import { formatPrice } from '@/lib/format-price';
 import { IMAGE_WIDTH, optimizeImage } from '@/lib/image';
 import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from '@/lib/review-photos';
 import { deleteReviewAsAdmin, reportReview } from '@/lib/admin-reviews-api';
+import {
+  type DisplayProperty,
+  type PropertyDetail,
+  formatReviewDate,
+  mapApiProperty,
+  ratingBarPercent,
+} from '@/lib/frontend/property-detail';
 import Icon from '@/components/Icon';
 
 /** Alasan default saat admin menghapus langsung dari halaman detail. */
@@ -22,33 +28,6 @@ const REPORT_REASON_PRESETS = ['Kata kasar / tidak sopan', 'Spam atau promosi', 
 const MIN_REPORT_REASON = 3;
 
 // ─── Types ────────────────────────────────────────────────────
-
-type PropertyDetail = {
-  id: string;
-  title: string;
-  address?: string | null;
-  city?: string | null;
-  district?: string | null;
-  neighbourhood?: string | null;
-  imageUrls?: string[];
-  description: string | null;
-  price: string;
-  listingType: string;
-  lat?: number | null;
-  lng?: number | null;
-  owner?: {
-    id?: string | null;
-    name?: string | null;
-    username?: string | null;
-    image?: string | null;
-    phoneNumber?: string | null;
-  };
-  facilities: Array<{ code: string; name: string }>;
-  createdAt: string;
-  discountPercentage?: number | null;
-  discountActiveUntil?: string | null;
-  isDiscountActive?: boolean;
-};
 
 type ReviewPhoto = { id: string; data: string };
 
@@ -87,32 +66,6 @@ type ReviewsData = {
   avgRating: number;
 };
 
-type DisplayProperty = {
-  id: string;
-  title: string;
-  kategori: string;
-  price: string;
-  originalPrice: string | null;
-  discountPercentage: number | null;
-  discountActiveUntil: string | null;
-  isDiscountActive: boolean;
-  biayaHidup: string;
-  lokasi: string;
-  luas: string;
-  lantai: string;
-  kt: string;
-  km: string;
-  fasilitas: string[];
-  images: string[];
-  description: string;
-  lat: number | null;
-  lng: number | null;
-  ownerName: string;
-  ownerId: string | null;
-  ownerImage: string | null;
-  ownerPhoneNumber: string | null;
-};
-
 type CurrentUser = {
   id: string;
   name?: string | null;
@@ -124,64 +77,7 @@ type PropertyDetailClientProps = { propertyId: string };
 
 // ─── Constants ───────────────────────────────────────────────
 
-const FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1494526585095-c41746248156?w=1200&q=80';
 const MAX_PHOTO_UPLOAD = MAX_REVIEW_PHOTOS;
-
-// ─── Helpers ─────────────────────────────────────────────────
-
-function mapApiProperty(data: PropertyDetail): DisplayProperty {
-  const lokasi = [data.address, data.neighbourhood, data.district, data.city]
-    .filter((v) => Boolean(v && v.trim()))
-    .join(', ');
-
-  // Hitung diskon — hanya aktif kalau persentase > 0 dan belum kadaluarsa
-  const now = new Date();
-  const expiry = data.discountActiveUntil ? new Date(data.discountActiveUntil) : null;
-  const discountActive =
-    typeof data.discountPercentage === 'number' &&
-    data.discountPercentage > 0 &&
-    (expiry === null || expiry > now);
-  const numericPrice = Number(data.price);
-  const finalPrice = discountActive && Number.isFinite(numericPrice)
-    ? Math.round(numericPrice * (100 - (data.discountPercentage ?? 0)) / 100)
-    : numericPrice;
-
-  return {
-    id: data.id,
-    title: data.title,
-    kategori:
-      data.listingType === 'RENT'
-        ? 'Properti Sewa'
-        : data.listingType === 'SELL'
-          ? 'Properti Jual'
-          : 'Properti',
-    price: formatPrice(String(finalPrice)),
-    originalPrice: discountActive ? formatPrice(data.price) : null,
-    discountPercentage: discountActive ? (data.discountPercentage ?? null) : null,
-    discountActiveUntil: data.discountActiveUntil ?? null,
-    isDiscountActive: discountActive,
-    biayaHidup: 'Estimasi biaya hidup: -',
-    lokasi: lokasi || 'Lokasi belum tersedia',
-    luas: '-',
-    lantai: '-',
-    kt: '-',
-    km: '-',
-    fasilitas: data.facilities.map((f) => f.name),
-    images:
-      data.imageUrls && data.imageUrls.length > 0
-        ? data.imageUrls
-        : [FALLBACK_IMAGE],
-    description: data.description ?? 'Tidak ada deskripsi.',
-    lat: data.lat ?? null,
-    lng: data.lng ?? null,
-    ownerName:
-      data.owner?.name ?? data.owner?.username ?? data.owner?.image ??'Pemilik Properti',
-    ownerId: data.owner?.id ?? null,
-    ownerImage: data.owner?.image ?? null,
-    ownerPhoneNumber: data.owner?.phoneNumber ?? null,
-  };
-}
 
 function StarRating({
   value,
@@ -222,7 +118,7 @@ function StarRating({
 }
 
 function RatingBar({ label, count, total }: { label: string; count: number; total: number }) {
-  const pct = total > 0 ? (count / total) * 100 : 0;
+  const pct = ratingBarPercent(count, total);
   return (
     <div className={styles.ratingBarRow}>
       <span className={styles.ratingBarLabel}>{label}</span>
@@ -234,13 +130,7 @@ function RatingBar({ label, count, total }: { label: string; count: number; tota
   );
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
+const formatDate = formatReviewDate;
 
 // ─── Main Component ──────────────────────────────────────────
 

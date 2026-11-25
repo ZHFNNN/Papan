@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import styles from "./KycVerificationForm.module.css";
 import Icon from '@/components/Icon';
+import { validateKycForm } from '@/lib/frontend/form-validation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -242,18 +243,7 @@ export default function KycVerificationForm({ readOnly = false }: { readOnly?: b
   };
 
   const validate = (): boolean => {
-    const errs: Partial<Record<keyof FormState, string>> = {};
-    if (!/^\d{16}$/.test(form.nik))           errs.nik           = "NIK harus tepat 16 digit.";
-    if (form.fullName.trim().length < 3)       errs.fullName      = "Nama minimal 3 karakter.";
-    if (form.phoneNumber.trim().length < 8)    errs.phoneNumber   = "Nomor HP minimal 8 karakter.";
-    if (form.province.trim().length < 2)       errs.province      = "Provinsi wajib diisi.";
-    if (form.cityOrRegency.trim().length < 2)  errs.cityOrRegency = "Kota/Kabupaten wajib diisi.";
-    if (form.district.trim().length < 2)       errs.district      = "Kecamatan wajib diisi.";
-    if (!/^\d{1,3}$/.test(form.rt))            errs.rt            = "RT tidak valid.";
-    if (!/^\d{1,3}$/.test(form.rw))            errs.rw            = "RW tidak valid.";
-    if (!/^\d{5}$/.test(form.postalCode))      errs.postalCode    = "Kode pos harus 5 digit.";
-    if (!form.ktpImageUrl)                     errs.ktpImageUrl    = "Foto KTP wajib diunggah.";
-    if (!form.selfieImageUrl)                  errs.selfieImageUrl = "Selfie wajib diunggah.";
+    const errs: Partial<Record<keyof FormState, string>> = validateKycForm(form);
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };

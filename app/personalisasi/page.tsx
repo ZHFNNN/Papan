@@ -5,6 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
 import Icon, { type IconName } from '@/components/Icon';
+import { validatePersonalisasiForm } from '@/lib/frontend/form-validation';
+import { shortLocationName } from '@/lib/frontend/location';
+import { togglePreference } from '@/lib/frontend/personalisasi-form';
+import {
+  type CriteriaKey,
+  type PriorityRanking,
+  type PriorityTier,
+  EMPTY_RANKING,
+  isCriteriaKey,
+  placeCriteria as placeInRanking,
+  rankingToPriorities,
+  tierOf as tierInRanking,
+  unplaceCriteria as unplaceFromRanking,
+} from '@/lib/frontend/priority-ranking';
 
 // MapPicker di-import secara lazy supaya Leaflet tidak di-load pas SSR
 const MapPicker = lazy(() => import('@/components/MapPicker'));
@@ -30,10 +44,8 @@ interface FormErrors {
   priorities?: string;
 }
 
-// Prioritas DSS: 3 kriteria disusun ke 3 tingkat (masing-masing tingkat diisi 1 kriteria)
-type CriteriaKey  = 'budget' | 'location' | 'facilities';
-type PriorityTier = 'high' | 'medium' | 'low';
-type PriorityRanking = Record<PriorityTier, CriteriaKey | null>;
+// Prioritas DSS: 3 kriteria disusun ke 3 tingkat (masing-masing tingkat diisi 1 kriteria).
+// Tipe & logika susunan ada di lib/frontend/priority-ranking.ts.
 
 // ── Opsi pilihan ───────────────────────────────────────────────────────────
 const OCCUPATIONS = ['Mahasiswa', 'Karyawan', 'Wiraswasta', 'Freelancer', 'Lainnya'];
@@ -91,7 +103,7 @@ export default function PersonalisasiPage() {
 
   const mapEmbedSrc = `https://maps.google.com/maps?q=${formData.locationLat ?? -2.5},${formData.locationLng ?? 118}&z=${formData.locationLat && formData.locationLng ? 15 : 5}&output=embed`;
 
-  const [ranking, setRanking]                 = useState<PriorityRanking>({ high: null, medium: null, low: null });
+  const [ranking, setRanking]                 = useState<PriorityRanking>(EMPTY_RANKING);
   const [selectedCriteria, setSelectedCriteria] = useState<CriteriaKey | null>(null);
   const [dragOverZone, setDragOverZone]         = useState<PriorityTier | 'pool' | null>(null);
   const [errors, setErrors]                     = useState<FormErrors>({});
@@ -125,48 +137,29 @@ export default function PersonalisasiPage() {
     lat: number;
     lng: number;
   }) => {
-    const parts = [loc.neighbourhood, loc.district, loc.city].filter(Boolean);
-    const shortName = parts.join(', ') || loc.displayName;
+    const shortName = shortLocationName(loc);
     setFormData((prev) => ({ ...prev, location: shortName, locationLat: loc.lat, locationLng: loc.lng }));
     setErrors((prev) => ({ ...prev, location: undefined }));
   };
 
   const handleTogglePreference = (pref: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      preferences: prev.preferences.includes(pref)
-        ? prev.preferences.filter((p) => p !== pref)
-        : [...prev.preferences, pref],
-    }));
+    setFormData((prev) => ({ ...prev, preferences: togglePreference(prev.preferences, pref) }));
   };
 
   // ── Prioritas DSS ────────────────────────────────────────────────────────
-  const tierOf = (key: CriteriaKey): PriorityTier | null =>
-    (Object.keys(ranking) as PriorityTier[]).find((t) => ranking[t] === key) ?? null;
+  const tierOf = (key: CriteriaKey): PriorityTier | null => tierInRanking(ranking, key);
 
   const unassignedCriteria = CRITERIA.filter((c) => tierOf(c.key) === null);
 
   const placeCriteria = (key: CriteriaKey, target: PriorityTier) => {
-    setRanking((prev) => {
-      const next = { ...prev };
-      const from = (Object.keys(prev) as PriorityTier[]).find((t) => prev[t] === key) ?? null;
-      const displaced = prev[target];
-      if (from) next[from] = displaced; // tukar posisi kalau tingkat tujuan sudah terisi
-      next[target] = key;
-      return next;
-    });
+    // tukar posisi kalau tingkat tujuan sudah terisi
+    setRanking((prev) => placeInRanking(prev, key, target));
     setSelectedCriteria(null);
     setErrors((prev) => ({ ...prev, priorities: undefined }));
   };
 
   const unplaceCriteria = (key: CriteriaKey) => {
-    setRanking((prev) => {
-      const next = { ...prev };
-      (Object.keys(next) as PriorityTier[]).forEach((t) => {
-        if (next[t] === key) next[t] = null;
-      });
-      return next;
-    });
+    setRanking((prev) => unplaceFromRanking(prev, key));
     setSelectedCriteria(null);
   };
 
@@ -188,7 +181,7 @@ export default function PersonalisasiPage() {
 
   const readDraggedKey = (e: React.DragEvent): CriteriaKey | null => {
     const raw = e.dataTransfer.getData('text/plain');
-    return CRITERIA.some((c) => c.key === raw) ? (raw as CriteriaKey) : null;
+    return isCriteriaKey(raw) ? raw : null;
   };
 
   const handleDropOnTier = (e: React.DragEvent, tier: PriorityTier) => {
@@ -229,15 +222,7 @@ export default function PersonalisasiPage() {
     .join(' › ');
 
   const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    if (!formData.location.trim()) newErrors.location   = 'Pilih lokasi lewat peta.';
-    if (!formData.occupation)      newErrors.occupation = 'Pilih pekerjaan kamu.';
-    if (!formData.budget)          newErrors.budget     = 'Pilih range budget kamu.';
-    if (!formData.propertyType)    newErrors.propertyType = 'Pilih tipe properti yang kamu cari.';
-    if (isKosan && !formData.gender) newErrors.gender   = 'Pilih gender kamu.';
-    if (!ranking.high || !ranking.medium || !ranking.low) {
-      newErrors.priorities = 'Susun ketiga kriteria ke tingkat Paling penting, Penting, dan Biasa saja.';
-    }
+    const newErrors: FormErrors = validatePersonalisasiForm(formData, ranking);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -248,11 +233,7 @@ export default function PersonalisasiPage() {
     setSubmitError(null);
 
     // ubah susunan tingkat → { budget, location, facilities } berisi level 1-3
-    const priorities = {} as Record<CriteriaKey, number>;
-    PRIORITY_TIERS.forEach(({ tier, level }) => {
-      const key = ranking[tier];
-      if (key) priorities[key] = level;
-    });
+    const priorities = rankingToPriorities(ranking);
 
     try {
       const res = await fetch('/api/personalisasi', {

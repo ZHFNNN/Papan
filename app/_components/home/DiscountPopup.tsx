@@ -4,33 +4,13 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '@/app/HomePage.module.css';
 import { formatPrice } from '@/lib/format-price';
-import { type PropertyCardData, calculateDiscountedPrice, isDiscountStillActive } from '@/types/property';
+import type { PropertyCardData } from '@/types/property';
+import { type DiscountItem, toDiscountItems } from '@/lib/frontend/home';
 import { CardFacilities, CardLocation, CardShell, CardStats, SkeletonCards } from './CardParts';
 import { propertyDetailHref } from './constants';
 import { useSparkCanvas } from './useSparkCanvas';
 import Icon from '@/components/Icon';
 
-type DiscountItem = {
-  prop: PropertyCardData;
-  discount: number;
-  originalPrice: string;
-  discountedPrice: number;
-};
-
-/** Hanya properti dengan diskon aktif (data real dari owner) beserta harga setelah diskon. */
-function toDiscountItems(items: PropertyCardData[]): DiscountItem[] {
-  return items
-    .filter((p) => isDiscountStillActive(p.discountPercentage, p.discountActiveUntil))
-    .map((p) => {
-      const discount = p.discountPercentage ?? 0;
-      return {
-        prop: p,
-        discount,
-        originalPrice: p.price,
-        discountedPrice: calculateDiscountedPrice(p.price, discount),
-      };
-    });
-}
 const TICKER_REPEAT = 5;
 
 function TickerGroup({ hidden }: { hidden?: boolean }) {

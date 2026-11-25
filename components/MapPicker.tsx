@@ -7,55 +7,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Circle, LeafletMouseEvent, Map as LeafletMap, Marker } from 'leaflet';
 import styles from './MapPicker.module.css';
+import { type NominatimResult, type PickedLocation, parseNominatim } from '@/lib/frontend/location';
 
 // Leaflet di-import dinamis (butuh `window`), jadi tipenya diambil dari modulnya
 type LeafletModule = typeof import('leaflet');
 
-export type PickedLocation = {
-  displayName: string;
-  city: string;
-  district: string;
-  neighbourhood: string;
-  lat: number;
-  lng: number;
-};
+export type { PickedLocation };
 
 interface MapPickerProps {
   onLocationPicked: (loc: PickedLocation) => void;
   onClose: () => void;
-}
-
-interface NominatimAddress {
-  road?: string;
-  neighbourhood?: string;
-  village?: string;
-  suburb?: string;
-  city_district?: string;
-  county?: string;
-  city?: string;
-  town?: string;
-  municipality?: string;
-  state?: string;
-  postcode?: string;
-}
-
-interface NominatimResult {
-  display_name: string;
-  address: NominatimAddress;
-  lat: string;
-  lon: string;
-}
-
-function parseNominatim(result: NominatimResult, lat: number, lng: number): PickedLocation {
-  const a = result.address;
-  return {
-    displayName:   result.display_name,
-    city:          a.city ?? a.town ?? a.county ?? a.municipality ?? '',
-    district:      a.city_district ?? a.county ?? '',
-    neighbourhood: a.neighbourhood ?? a.village ?? a.suburb ?? '',
-    lat,
-    lng,
-  };
 }
 
 // Status deteksi lokasi user

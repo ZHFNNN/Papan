@@ -1,0 +1,29 @@
+# Lingkungan black box testing PAPAN — TERPISAH dari database production.
+#   docker compose -f tests/blackbox/docker-compose.yml up -d
+#   docker compose -f tests/blackbox/docker-compose.yml down -v   (hapus semua data uji)
+name: papan-blackbox
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: papan
+      POSTGRES_PASSWORD: papan
+      POSTGRES_DB: papan_blackbox
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U papan -d papan_blackbox"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Menangkap email verifikasi / notifikasi (UI: http://localhost:8025)
+  mail:
+    image: axllent/mailpit:latest
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "1025:1025"
+      - "8025:8025"

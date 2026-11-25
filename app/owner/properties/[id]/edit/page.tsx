@@ -6,11 +6,11 @@ import styles from '@/app/owner/addProperty/page.module.css';
 import type { PickedLocation } from '@/components/MapPicker';
 import {
   KOSAN_GENDER_OPTIONS,
-  KOSAN_GENDER_REQUIRED_MESSAGE,
   normalizeGenderTarget,
   type KosanGenderTarget,
 } from '@/lib/property-input';
-import { DUPLICATE_PHOTO_API_MESSAGE, duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
+import { duplicatePhotoMessage, splitDuplicatePhotos } from '@/lib/photo-hash';
+import { validatePropertyForm } from '@/lib/frontend/form-validation';
 import { MIN_PROPERTY_PHOTOS } from '@/types/property';
 import Icon from '@/components/Icon';
 
@@ -359,39 +359,15 @@ export default function EditPropertyPage() {
   useEffect(() => () => { newPhotoPreviews.forEach((u) => URL.revokeObjectURL(u)); }, [newPhotoPreviews]);
 
   const validate = () => {
-    const next: FormErrors = {};
-    if (!form.title.trim())      next.title       = 'Nama properti wajib diisi.';
-    if (!form.address.trim() || form.locationLat == null || form.locationLng == null)
-                                  next.address     = 'Lokasi wajib dipilih lewat peta.';
-    if (!form.price.trim())       next.price       = 'Harga wajib diisi.';
-    else if (Number.isNaN(Number(form.price.replace(/[^0-9]/g, ''))))
-                                  next.price       = 'Harga harus berupa angka.';
-    if (!form.description.trim()) next.description = 'Deskripsi wajib diisi.';
-    if (!form.listingType)        next.listingType = 'Tipe listing wajib dipilih.';
-    if (!form.category)           next.category    = 'Kategori properti wajib dipilih.';
-    if (form.category === 'KOSAN' && !genderTarget)
-                                  next.genderTarget = KOSAN_GENDER_REQUIRED_MESSAGE;
-    if (existingImageUrls.length + newPhotos.length < MIN_PROPERTY_PHOTOS)
-                                  next.photos      = `Minimal ${MIN_PROPERTY_PHOTOS} foto properti (saat ini ${existingImageUrls.length + newPhotos.length}).`;
-    else if (new Set(newPhotoHashesRef.current).size !== newPhotos.length)
-                                  next.photos      = DUPLICATE_PHOTO_API_MESSAGE;
-
-    // Validasi diskon — opsional
-    const discRaw = form.discountPercentage.trim();
-    if (discRaw !== '') {
-      const pct = Number(discRaw);
-      if (!Number.isFinite(pct) || !Number.isInteger(pct) || pct < 1 || pct > 99) {
-        next.discountPercentage = 'Diskon harus bilangan bulat 1-99.';
-      }
-    }
-    if (form.discountActiveUntil.trim() !== '') {
-      const expiry = new Date(form.discountActiveUntil);
-      if (Number.isNaN(expiry.getTime())) {
-        next.discountActiveUntil = 'Format tanggal tidak valid.';
-      } else if (expiry < new Date(new Date().setHours(0, 0, 0, 0))) {
-        next.discountActiveUntil = 'Tanggal diskon tidak boleh di masa lalu.';
-      }
-    }
+    const next: FormErrors = validatePropertyForm(
+      { ...form, genderTarget },
+      {
+        totalCount: existingImageUrls.length + newPhotos.length,
+        newHashes: newPhotoHashesRef.current,
+        newCount: newPhotos.length,
+        countLabel: 'saat ini',
+      },
+    );
 
     setErrors(next);
     return Object.keys(next).length === 0;
