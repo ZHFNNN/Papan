@@ -27,6 +27,7 @@ export default defineConfig({
         "lib/property-input.ts",
         "lib/upload.ts",
         "lib/photo-hash.ts",
+        "lib/whatsapp.ts",
       ],
     },
   },

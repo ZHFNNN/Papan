@@ -1,20 +1,13 @@
 // components/WhatsAppButton.tsx
 // Tombol "Chat via WhatsApp" di halaman detail properti
 
+import { formatWhatsAppNumber } from "@/lib/whatsapp";
 import styles from "./WhatsAppButton.module.css";
 
 interface WhatsAppButtonProps {
   // Nomor dalam format lokal atau internasional (contoh: 0812..., +62812..., atau 62812...)
   phone: string;
   propertyTitle: string;
-}
-
-export function formatWhatsAppNumber(phone: string): string {
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.startsWith("0")) {
-    cleaned = "62" + cleaned.slice(1);
-  }
-  return cleaned;
 }
 
 export default function WhatsAppButton({ phone, propertyTitle }: WhatsAppButtonProps) {
